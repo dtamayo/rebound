@@ -132,10 +132,10 @@ void problem_init(int argc, char* argv[]){
 
 	system("rm -f orbits.txt");
 	
-	/*int x = 2;
-	char* test = "pngs/img0000.png";
-	char y = (char)x;
-	printf("**** %c ******\n", y);*/
+#ifdef LIBPNG
+    system("rm -rf pngs");
+    system("mkdir pngs");
+#endif //LIBPNG
 }
 
 void problem_inloop(){
@@ -143,8 +143,11 @@ void problem_inloop(){
 
 void problem_output(){
 	
-	if (output_check(1000.*dt)){
+	if (output_check(500)){
 		output_timing();
+#ifdef LIBPNG
+        output_png("pngs/");
+#endif
 	}
 	if (output_check(100.)){ 	// output heliocentric orbital elements every 10000 years
 		output_append_orbits("orbits.txt");
