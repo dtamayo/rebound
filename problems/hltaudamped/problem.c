@@ -1,4 +1,4 @@
-/**a
+/**
  * @file 	problem.c
  * @brief 	Example problem: circular orbit.
  * @author 	Hanno Rein <hanno@hanno-rein.de>
