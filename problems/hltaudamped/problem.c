@@ -74,7 +74,7 @@ void problem_init(int argc, char* argv[]){
     
     double massfac = input_get_double(argc,argv,"mass",1); // in jup masses
     double starmass = input_get_double(argc,argv,"starmass",0.55); // in solar masses
-    double taua = input_get_double(argc,argv,"taua",1000000);
+    double taue = input_get_double(argc,argv,"taue",10000);
     double k = input_get_double(argc,argv,"k",100);
     
     dt  		= 0.001;				// in years.  Innermost would have P ~25 yrs for 1 solar mass star.  IAS15 is adaptive anyway
@@ -127,8 +127,8 @@ void problem_init(int argc, char* argv[]){
 	tau_e = calloc(sizeof(double),N);
     
     for(int j=1;j<=8;++j){
-        tau_a[j] = 2.*M_PI*taua;
-        tau_e[j] = 2.*M_PI*taua/k;
+        tau_a[j] = 2.*M_PI*taue*k;
+        tau_e[j] = 2.*M_PI*taue;
     }
     
 	problem_additional_forces = problem_migration_forces; 	//Set function pointer to add dissipative forces.
@@ -141,8 +141,8 @@ void problem_init(int argc, char* argv[]){
     system("mkdir pngs");
 #endif //LIBPNG
     
-    output_double("semimajor axis decay timescale [yrs]", taua);
-    output_double("eccentricity decay timescale [yrs]", taua/k);
+    output_double("semimajor axis decay timescale [yrs]", taue*k);
+    output_double("eccentricity decay timescale [yrs]", taue);
     output_double("K ratio between tau_a and tau_e", k);
     output_double("Planet masses [mjup]",massfac);
     output_double("Star's mass [msolar]", starmass);
