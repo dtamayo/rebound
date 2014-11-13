@@ -77,7 +77,7 @@ void problem_init(int argc, char* argv[]){
     double taue = input_get_double(argc,argv,"taue",10000);
     double k = input_get_double(argc,argv,"k",100);
     
-    dt  		= 0.001;				// in years.  Innermost would have P ~25 yrs for 1 solar mass star.  IAS15 is adaptive anyway
+    dt  		= 0.01;				// in years.  Innermost would have P ~25 yrs for 1 solar mass star.  IAS15 is adaptive anyway
 	tmax		= 1e6;		
 	G		  	= 4*M_PI*M_PI;		// units of years, AU and solar masses.
 	
@@ -195,7 +195,7 @@ void problem_inloop(){
 }
 
 void problem_output(){
-	if (dt < 1e-6){
+	if (dt < 1e-4){
         char* eos = "eos.txt"; // end of simulation time
         FILE* of = fopen(eos, "w");
         if (of==NULL){
