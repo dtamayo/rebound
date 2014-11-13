@@ -195,7 +195,7 @@ void problem_inloop(){
 }
 
 void problem_output(){
-	if (dt < 1e-4){
+	if (dt < 1e-3){
         char* eos = "eos.txt"; // end of simulation time
         FILE* of = fopen(eos, "w");
         if (of==NULL){
