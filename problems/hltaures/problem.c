@@ -52,15 +52,12 @@ double* tau_e; 	/**< Eccentricity damping timescale in years for all particles *
 void problem_migration_forces();
 const double mjup = 9.54e-4; // solar masses
 
-const double a[9] = // in AU
+const double a[6] = // in AU
 {
 	0.,		// placeholder for star (have to calc COM)
   	9.,   	// gap 1
   	23.4, 	// gap 2
-  	30.,  	// gap 3
-  	36.6, 	// gap 4
-  	46.2, 	// gap 5
-  	55.2, 	// gap 6
+  	50.7, 	// gap 5 average of 2 gaps in big one
   	66.,  	// gap 7
   	77.4  	// gap 8
 };
@@ -77,16 +74,20 @@ void problem_init(int argc, char* argv[]){
     double taue = input_get_double(argc,argv,"taue",10000);
     double k = input_get_double(argc,argv,"k",100);
     
-    dt  		= 0.01;				// in years.  Innermost would have P ~25 yrs for 1 solar mass star.  IAS15 is adaptive anyway
-	tmax		= 1e6;		
+    dt  		= 0.1;				// in years.  Innermost would have P ~25 yrs for 1 solar mass star.  IAS15 is adaptive anyway
+	tmax		= 1e7;
 	G		  	= 4*M_PI*M_PI;		// units of years, AU and solar masses.
 	
+	double astart[6]; 				// initial values of a such that by the end of migration a ~ the observed a's
+	for(int i=0;i<6;++i){
+		astart[i] = 1.1*a[i];
+	}
 #ifdef OPENGL
 	display_wire	= 1;			// Show orbits.
 #endif // OPENGL
 	init_boxwidth(200); 			// Init box with width 1000 astronomical units (max a = 80 AU to start)
 
-	struct particle p[9]; 			// also include star
+	struct particle p[6]; 			// also include star
 	
 	// Initial conditions
 	
@@ -97,13 +98,13 @@ void problem_init(int argc, char* argv[]){
 	double mx[3] = {0.,0.,0.};
 	double mxdot[3] = {0.,0.,0.}; // to hold the total of m_i * x_i and m_i * v_i for all the planets, so that can set star's ini. conds s.t. com is fixed at 0
     
-    for (int i=1;i<=8;i++){			// initialize the planets first, then initialize star so that center of mass is fixed at 0
+    for (int i=1;i<=5;i++){			// initialize the planets first, then initialize star so that center of mass is fixed at 0
 		double phi = (float)rand()/RAND_MAX*2*M_PI; // choose random azimuthal angle [0,2PI]
 		
-		p[i].x  = a[i]*cos(phi); 			p[i].y  = a[i]*sin(phi);	 		p[i].z  = 0.;
+		p[i].x  = astart[i]*cos(phi); 		p[i].y  = astart[i]*sin(phi);	 	p[i].z  = 0.;
 		mx[0] += massfac*mjup*p[i].x;		mx[1] += massfac*mjup*p[i].y;       mx[2] += massfac*mjup*p[i].z;
 		
-		double vkep = sqrt(G*starmass/a[i]);
+		double vkep = sqrt(G*starmass/astart[i]);
 		p[i].vx = -vkep*sin(phi); 			p[i].vy = vkep*cos(phi);	 		p[i].vz = 0.;
 		mxdot[0] += massfac*mjup*p[i].vx;	mxdot[1] += massfac*mjup*p[i].vy;	mxdot[2] += massfac*mjup*p[i].vz;
 		
@@ -118,7 +119,7 @@ void problem_init(int argc, char* argv[]){
 	p[0].ax = 0;							p[0].ay = 0;						p[0].az = 0;
 	p[0].m = starmass;
 	
-	for (int i=0;i<=8;++i){	particles_add(p[i]); }
+	for (int i=0;i<=5;++i){	particles_add(p[i]); }
 	
 	/*printf("Sum of m_i * x_i at t=0 is (%f, %f, %f)\n", mx[0]+p[0].m*p[0].x, mx[1]+p[0].m*p[0].y, mx[2]+p[0].m*p[0].z);
 	printf("Sum of m_i * v_i at t=0 is (%f, %f, %f)\n", mx[0]+p[0].m*p[0].x, mx[1]+p[0].m*p[0].y, mx[2]+p[0].m*p[0].z);*/
@@ -126,7 +127,7 @@ void problem_init(int argc, char* argv[]){
     tau_a = calloc(sizeof(double),N);
 	tau_e = calloc(sizeof(double),N);
     
-    for(int j=1;j<=8;++j){
+    for(int j=1;j<=5;++j){
         tau_a[j] = taue*k;
         tau_e[j] = taue;
     }
@@ -195,7 +196,7 @@ void problem_inloop(){
 }
 
 void problem_output(){
-	if (dt < 1e-3){
+  /*	if (dt < 1e-3){
         char* eos = "eos.txt"; // end of simulation time
         FILE* of = fopen(eos, "w");
         if (of==NULL){
@@ -206,15 +207,22 @@ void problem_output(){
         fflush(stdout);
         fclose(of);
         exit_simulation=1;
-    }
+	}*/
     
+	double mu = G*(particles[0].m);
+	double a5 = -mu/( particles[5].vx*particles[5].vx + particles[5].vy*particles[5].vy + particles[5].vz*particles[5].vz - 2.*mu/sqrt(particles[5].x*particles[5].x + particles[5].y*particles[5].y + particles[5].z*particles[5].z));
+
+	if(a5 < 1.04*a[5]){
+		printf("Outer planet's a reached %f after %f years", a5, t);
+		exit_simulation=1;
+	}
 	if (output_check(1000*dt)){
 		output_timing();
 #ifdef LIBPNG
         //output_png("pngs/");
 #endif
 	}
-	if (output_check(100.)){ 	// output heliocentric orbital elements every 10000 years
+    if (output_check(100.)){ 	// output heliocentric orbital elements every 10000 years
 		output_append_orbits("orbits.txt");
 	}
 }

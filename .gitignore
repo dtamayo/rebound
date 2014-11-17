@@ -1,6 +1,6 @@
 *.o
 *.bin
-*.~
+*~
 nbody
 gravity.c
 boundaries.c
@@ -18,3 +18,4 @@ doc/latex/*
 doc/Doxyfile
 problems/**/*.txt
 problems/**/*.png
+problems/**/out*
