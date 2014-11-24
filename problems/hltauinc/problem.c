@@ -50,6 +50,7 @@
 double* tau_a; 	/**< Migration timescale in years for all particles */
 double* tau_e; 	/**< Eccentricity damping timescale in years for all particles */
 void problem_migration_forces();
+void append_orbits();
 const double mjup = 9.54e-4; // solar masses
 
 const double a[6] = // in AU
@@ -73,65 +74,47 @@ void problem_init(int argc, char* argv[]){
     double starmass = input_get_double(argc,argv,"starmass",0.55); // in solar masses
     double taue = input_get_double(argc,argv,"taue",10000);
     double k = input_get_double(argc,argv,"k",100);
-    double e0 = input_get_double(argc,argv,"e0",0.01);
-    
+    double sigma_e = input_get_double(argc,argv,"sigmae",0.01); 			// scale of eccentricity rayleigh distribution
+    double sigma_i = input_get_double(argc,argv,"sigmai",0.01); 			// scale of inclination rayleigh distribution
+
     dt  		= 0.1;				// in years.  Innermost would have P ~25 yrs for 1 solar mass star.  IAS15 is adaptive anyway
-	tmax		= 1e7;
+	tmax		= 1e6;		
 	G		  	= 4*M_PI*M_PI;		// units of years, AU and solar masses.
 	
-	double astart[6]; 				// initial values of a such that by the end of migration a ~ the observed a's
-	for(int i=0;i<6;++i){
-		astart[i] = 1.1*a[i];
-	}
 #ifdef OPENGL
 	display_wire	= 1;			// Show orbits.
 #endif // OPENGL
 	init_boxwidth(400); 			// Init box with width 1000 astronomical units (max a = 80 AU to start)
 
-	struct particle p[6]; 			// also include star
-	
 	// Initial conditions
 	
 	struct timeval tim;
 	gettimeofday(&tim, NULL);
 	srand(tim.tv_usec);
 	
-	double mx[3] = {0.,0.,0.};
-	double mxdot[3] = {0.,0.,0.}; // to hold the total of m_i * x_i and m_i * v_i for all the planets, so that can set star's ini. conds s.t. com is fixed at 0
-    
+	struct particle star;
+	star.x  = 0; star.y  = 0; star.z  = 0;
+	star.vx = 0; star.vy = 0; star.vz = 0;
+	star.ax = 0; star.ay = 0; star.az = 0;
+	star.m  = starmass;			// This is a sub-solar mass star
+	particles_add(star);
+
     for (int i=1;i<=5;i++){			// initialize the planets first, then initialize star so that center of mass is fixed at 0
-		double f = i*M_PI; // start them with alternating pericenters(float)rand()/RAND_MAX*2*M_PI; // choose random azimuthal angle [0,2PI]
-		
-		p[i].x  = astart[i]*(1-e0*e0)/(1+e0*cos(f))*cos(f); 		p[i].y  = astart[i]*(1-e0*e0)/(1+e0*cos(f))*sin(f);	 	p[i].z  = 0.;
-		mx[0] += massfac*mjup*p[i].x;		mx[1] += massfac*mjup*p[i].y;       mx[2] += massfac*mjup*p[i].z;
-		
-		double vkep = sqrt(G*starmass/astart[i])*sqrt((1+e0*cos(f))/(1-e0*cos(f)));
-		p[i].vx = -vkep*sin(f); 			p[i].vy = vkep*cos(f);	 		p[i].vz = 0.;
-		mxdot[0] += massfac*mjup*p[i].vx;	mxdot[1] += massfac*mjup*p[i].vy;	mxdot[2] += massfac*mjup*p[i].vz;
-		
-		p[i].ax = 0; 						p[i].ay = 0; 						p[i].az = 0;
-		p[i].m  = massfac*mjup;
+		double Omega = (float)rand()/RAND_MAX*2*M_PI;;
+		double omega = (float)rand()/RAND_MAX*2*M_PI;;
+		double f = (float)rand()/RAND_MAX*2*M_PI;;
+		double inc = tools_rayleigh(sigma_i);
+		double e = tools_rayleigh(sigma_e);
+
+		struct particle p = tools_init_orbit3d(starmass, massfac*mjup, a[i], e, inc, Omega, omega, f);
+		particles_add(p);
 	}
-	
-	// Now initialize star such that center of mass is fixed at origin (so total mx & mxdot = 0)
-	
-	p[0].x = -mx[0]/starmass;				p[0].y = -mx[1]/starmass;			p[0].z = -mx[2]/starmass;
-	p[0].vx = -mxdot[0]/starmass;			p[0].vy = -mxdot[1]/starmass;		p[0].vz = -mxdot[2]/starmass;
-	p[0].ax = 0;							p[0].ay = 0;						p[0].az = 0;
-	p[0].m = starmass;
-	
-	for (int i=0;i<=5;++i){	particles_add(p[i]); }
-	
-	/*printf("Sum of m_i * x_i at t=0 is (%f, %f, %f)\n", mx[0]+p[0].m*p[0].x, mx[1]+p[0].m*p[0].y, mx[2]+p[0].m*p[0].z);
-	printf("Sum of m_i * v_i at t=0 is (%f, %f, %f)\n", mx[0]+p[0].m*p[0].x, mx[1]+p[0].m*p[0].y, mx[2]+p[0].m*p[0].z);*/
-	
+		
     tau_a = calloc(sizeof(double),N);
 	tau_e = calloc(sizeof(double),N);
     
     for(int j=1;j<=5;++j){
-        if(j==5){
-        	tau_a[j] = taue*k;
-        }
+        tau_a[j] = taue*k;
         tau_e[j] = taue;
     }
     
@@ -140,6 +123,8 @@ void problem_init(int argc, char* argv[]){
 	tools_move_to_center_of_momentum();
     
     output_prepare_directory();
+
+    output_append_orbits("ini.txt");
 	
 #ifdef LIBPNG
     system("mkdir pngs");
@@ -150,6 +135,8 @@ void problem_init(int argc, char* argv[]){
     output_double("K ratio between tau_a and tau_e", k);
     output_double("Planet masses [mjup]",massfac);
     output_double("Star's mass [msolar]", starmass);
+    output_double("Eccentricity scale parameter", sigma_e);
+    output_double("Inclination scale parameter", sigma_i);
     system("cat config.log");
 }
 
@@ -198,35 +185,48 @@ void problem_migration_forces(){
 void problem_inloop(){
 }
 
-void problem_output(){
-  /*	if (dt < 1e-3){
-        char* eos = "eos.txt"; // end of simulation time
-        FILE* of = fopen(eos, "w");
-        if (of==NULL){
-            printf("\n\nError while opening file '%s'.\n", eos);
-            return;
-        }
-        fprintf(of, "%.3e", t);
-        fflush(stdout);
-        fclose(of);
-        exit_simulation=1;
-	}*/
-    
-	double mu = G*(particles[0].m);
-	double a5 = -mu/( particles[5].vx*particles[5].vx + particles[5].vy*particles[5].vy + particles[5].vz*particles[5].vz - 2.*mu/sqrt(particles[5].x*particles[5].x + particles[5].y*particles[5].y + particles[5].z*particles[5].z));
-
-	if(a5 < 1.06*a[5]){
-		printf("Outer planet's a reached %f after %f years", a5, t);
-		exit_simulation=1;
+void append_orbits(char *filename){
+	FILE* of = fopen(filename,"a");
+	if (of==NULL){
+		printf("\n\nError while opening file '%s'.\n",filename);
+		return;
 	}
+	struct particle com = particles[0];
+	for (int i=1;i<N;i++){
+		struct orbit o = tools_p2orbit(particles[i],com);
+		fprintf(of,"%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\n",t,o.a,o.e,o.inc,o.Omega,o.omega,o.l,o.P,o.f);
+		if(o.a > 1e4 || o.a < 0){
+			printf("\nPlanet %d became unbound\n", i);
+			char* ofname = "../ej.txt";
+			FILE* of2 = fopen(ofname,"a");
+			if (of2==NULL){
+				printf("\n\nError while opening file '%s'.\n",filename);
+				return;
+			}
+			fprintf(of2,"%d\n",i);
+			fclose(of2);
+			char* eos = "eos.txt"; // end of simulation time
+			FILE* of3 = fopen(eos, "w");
+			if (of3==NULL){
+			    printf("\n\nError while opening file '%s'.\n", eos);
+			    return;
+			}
+			fprintf(of3, "%.3e", t);
+			fflush(stdout);
+			fclose(of3);
+			exit_simulation=1; } // quit if one of the semimajor axes jumps beyond 10000 AU or becomes hyperbolic
+		com = tools_get_center_of_mass(com,particles[i]);
+	}
+	fclose(of);
+}
+void problem_output(){
 	if (output_check(1000*dt)){
 		output_timing();
+		append_orbits("orbits.txt");
+		tools_move_to_center_of_momentum();
 #ifdef LIBPNG
         //output_png("pngs/");
 #endif
-	}
-    if (output_check(100.)){ 	// output heliocentric orbital elements every 10000 years
-		output_append_orbits("orbits.txt");
 	}
 }
 
