@@ -179,6 +179,28 @@ struct particle tools_init_orbit2d(double M, double m, double a, double e, doubl
 	return p;
 }
 
+struct particle tools_init_orbit3d(double M, double m, double a, double e, double i, double Omega, double omega, double f){
+	struct particle p;
+	p.m = m;
+	double r = a*(1-e*e)/(1 + e*cos(f));
+
+	// Murray & Dermott Eq 2.122
+	p.x  = r*(cos(Omega)*cos(omega+f) - sin(Omega)*sin(omega+f)*cos(i));
+	p.y  = r*(sin(Omega)*cos(omega+f) + cos(Omega)*sin(omega+f)*cos(i));
+	p.z  = r*sin(omega+f)*sin(i);
+
+	double n = sqrt(G*(m+M)/(a*a*a));
+
+	// Murray & Dermott Eq. 2.36 after applying the 3 rotation matrices from Sec. 2.8 to the velocities in the orbital plane
+	p.vx = (n*a/sqrt(1-e*e))*((e+cos(f))*(-cos(i)*cos(omega)*sin(Omega) - cos(Omega)*sin(omega)) - sin(f)*(cos(omega)*cos(Omega) - cos(i)*sin(omega)*sin(Omega)));
+	p.vy = (n*a/sqrt(1-e*e))*((e+cos(f))*(cos(i)*cos(omega)*cos(Omega) - sin(omega)*sin(Omega)) - sin(f)*(cos(omega)*sin(Omega) + cos(i)*cos(Omega)*sin(omega)));
+	p.vz = (n*a/sqrt(1-e*e))*((e+cos(f))*cos(omega)*sin(i) - sin(f)*sin(i)*sin(omega));
+
+	p.ax = 0; 	p.ay = 0; 	p.az = 0;
+
+	return p;
+}
+
 #define TINY 1.0e-12
 struct orbit tools_p2orbit(struct particle p, struct particle star){
 	struct orbit o;
