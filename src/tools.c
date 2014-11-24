@@ -62,6 +62,11 @@ double tools_normal(double variance){
 	return 	v1*sqrt(-2.*log(rsq)/rsq*variance);
 }
 
+double tools_rayleigh(double sigma){
+	double y = tools_uniform(0.,1.);
+	return sigma*sqrt(-2*log(y));
+}
+
 void tools_move_to_center_of_momentum(){
 	double m = 0;
 	double x = 0;
@@ -252,7 +257,7 @@ struct orbit tools_p2orbit(struct particle p, struct particle star){
 		o.f=2.*M_PI-o.f;	
 		ea =2.*M_PI-ea;
 	}
-	o.l = ea -o.e*sin(ea)+o.omega;			// mean longitude
+	o.l = ea -o.e*sin(ea)+o.omega + o.Omega;	// mean longitude
 	if (o.e<=1.e-10){ 				//circular orbit
 		o.omega=0.;
 		o.f=0.; 				// f has no meaning

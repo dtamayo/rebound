@@ -66,6 +66,12 @@ double tools_powerlaw(double min, double max, double slope);
 double tools_normal(double variance);
 
 /**
+ * Calculates a random variable drawn form a Rayleigh distribution.  Calculated as described on Rayleigh distribution wikipedia page
+ * @param sigma Scale parameter.
+ */
+double tools_rayleigh(double sigma);
+
+/**
  * This function sets up a Plummer sphere.
  * @param _N Number of particles in the plummer sphere.
  * @param M Total mass of the cluster.
