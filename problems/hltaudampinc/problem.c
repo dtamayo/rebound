@@ -147,6 +147,7 @@ void problem_init(int argc, char* argv[]){
     output_double("Star's mass [msolar]", starmass);
     output_double("Eccentricity scale parameter", sigma_e);
     output_double("Inclination scale parameter", sigma_i);
+    output_double("Iteration number", it);
     system("cat config.log");
 }
 
