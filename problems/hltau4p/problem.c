@@ -55,17 +55,13 @@ void problem_migration_forces();
 void append_orbits();
 const double mjup = 9.54e-4; // solar masses
 
-const double a[9] = // in AU
+const double a[5] = // in AU
 {
 	0.,		// placeholder for star (have to calc COM)
   	9.,   	// gap 1
-  	23.4, 	// gap 2
-  	30.,  	// gap 3
-  	36.6, 	// gap 4
-  	46.2, 	// gap 5
-  	55.2, 	// gap 6
+  	23., 	// gap 2
+  	51., 	// gap 5
   	66.,  	// gap 7
-  	77.4  	// gap 8
 };
 
 #ifdef OPENGL
@@ -87,7 +83,7 @@ void problem_init(int argc, char* argv[]){
     dt  		= 0.01;				// in years.  Innermost would have P ~25 yrs for 1 solar mass star.  IAS15 is adaptive anyway
 	tmax		= 1e6;
 	G		  	= 4*M_PI*M_PI;		// units of years, AU and solar masses.
-	int Nplanets = 8;
+	int Nplanets = 4;
 #ifdef OPENGL
 	display_wire	= 1;			// Show orbits.
 #endif // OPENGL
