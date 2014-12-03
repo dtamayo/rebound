@@ -52,10 +52,13 @@ double* tau_e; 	/**< Eccentricity damping timescale in years for all particles *
 double* tau_i;  /**< Inclination damping timescale in years for all particles */
 
 void problem_migration_forces();
-void append_orbits();
+void append_orbits(char *filename);
+void check_jumps();
 const double mjup = 9.54e-4; // solar masses
 
-const double a[5] = // in AU
+const int Nplanets = 5;
+const double dr_thresh = 5; // if deltar changes by more than this thresh, exit (either because ae > thresh, or delta a > thresh between checks)
+double a[Nplanets] = // in AU
 {
 	0.,		// placeholder for star (have to calc COM)
   	9.,   	// gap 1
@@ -63,8 +66,6 @@ const double a[5] = // in AU
   	51., 	// gap 5
   	66.,  	// gap 7
 };
-
-double lambdas[] = {0,0.5,1,1.5,2,2.5,3.0}; // longitudes at which to sample distances to check for orbit crossings
 
 #ifdef OPENGL
 extern int display_wire;
@@ -89,7 +90,7 @@ void problem_init(int argc, char* argv[]){
 #ifdef OPENGL
 	display_wire	= 1;			// Show orbits.
 #endif // OPENGL
-	init_boxwidth(400); 			// Init box with width 1000 astronomical units (max a = 80 AU to start)
+	init_boxwidth(200); 			// Using no boundary conditions now, so particles aren't removed beyond this dist.  This is just for graphics box size
 
 	// Initial conditions
 	
@@ -211,9 +212,6 @@ void append_orbits(char *filename){
 		printf("\n\nError while opening file '%s'.\n",filename);
 		return;
 	}
-	double r[] = {0.,0.,0.,0.,0.,0.,0.};
-	double rprev[7];
-	double dr;
 
 	struct particle com = particles[0];
 	for (int i=1;i<N;i++){
@@ -232,27 +230,43 @@ void append_orbits(char *filename){
 			exit_simulation=1;
 		} // quit if one of the semimajor axes jumps beyond 10000 AU or becomes hyperbolic
 
-		for(int q=0;q<7;++q){
-			rprev[q] = r[q];
-			r[q] = o.a*(1-o.e*o.e)/(1.+o.e*cos(lambdas[q]-o.Omega-o.omega));
-			if(r[q] - rprev[q] <= 0.){
-				exit_simulation=1;
-				break;
-			}
-		}
-
 		com = tools_get_center_of_mass(com,particles[i]);
 	}
 	fclose(of);
 }
+
+void check_jumps(){
+	struct particle com = particles[0];
+	for (int i=1;i<N;i++){
+		struct orbit o = tools_p2orbit(particles[i],com);
+
+		if(o.a*o.e > dr_thresh){ // quit if one of the eccentricity excursions grows beyond thresh (widths are ~5AU so set thresh ~ 5)
+			printf("\nPlanet %d had a*e > %f AU\n",i,dr_thresh);
+			exit_simulation=1;
+		}
+
+		if(abs(o.a - a[i]) > dr_thresh){
+			printf("\nPlanet %d had semimajor axis jump by more than %f AU", i, dr_thresh);
+			exit_simulation=1;
+		}
+		a[i] = o.a; // update a for next check
+
+		com = tools_get_center_of_mass(com,particles[i]);
+	}
+
+	return;
+}
+
 void problem_output(){
-	if (output_check(1000*dt)){
+	if (output_check(1000.*dt)){
 		output_timing();
 		append_orbits("orbits.txt");
-		tools_move_to_center_of_momentum();
 #ifdef LIBPNG
         //output_png("pngs/");
 #endif
+	}
+	if (output_check(1000.)){
+		check_jumps();
 	}
 }
 
