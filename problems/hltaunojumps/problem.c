@@ -58,7 +58,7 @@ const double mjup = 9.54e-4; // solar masses
 
 const int Nplanets = 5;
 const double dr_thresh = 5; // if deltar changes by more than this thresh, exit (either because ae > thresh, or delta a > thresh between checks)
-double a[Nplanets] = // in AU
+double a[] = // in AU
 {
 	0.,		// placeholder for star (have to calc COM)
   	9.,   	// gap 1
