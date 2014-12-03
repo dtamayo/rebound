@@ -58,7 +58,7 @@ const double mjup = 9.54e-4; // solar masses
 
 const int Nplanets = 5;
 const double dr_thresh = 5; // if deltar changes by more than this thresh, exit (either because ae > thresh, or delta a > thresh between checks)
-double a[Nplanets] = // in AU
+double a[] = // in AU
 {
 	0.,		// placeholder for star (have to calc COM)
   	9.,   	// gap 1
@@ -207,16 +207,16 @@ void problem_inloop(){
 }
 
 void append_orbits(char *filename){
-	FILE* of = fopen(filename,"a");
+	/*FILE* of = fopen(filename,"a");
 	if (of==NULL){
 		printf("\n\nError while opening file '%s'.\n",filename);
 		return;
-	}
+	}*/
 
 	struct particle com = particles[0];
 	for (int i=1;i<N;i++){
 		struct orbit o = tools_p2orbit(particles[i],com);
-		fprintf(of,"%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\n",t,o.a,o.e,o.inc,o.Omega,o.omega,o.l,o.P,o.f);
+		//fprintf(of,"%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\n",t,o.a,o.e,o.inc,o.Omega,o.omega,o.l,o.P,o.f);
 		if(o.a > 1e4 || o.a < 0){
 			printf("\nPlanet %d became unbound\n", i);
 			char* ofname = "../ej.txt";
@@ -232,7 +232,7 @@ void append_orbits(char *filename){
 
 		com = tools_get_center_of_mass(com,particles[i]);
 	}
-	fclose(of);
+	//fclose(of);
 }
 
 void check_jumps(){
@@ -259,7 +259,7 @@ void check_jumps(){
 
 void problem_output(){
 	if (output_check(1000.*dt)){
-		output_timing();
+		//output_timing();
 		append_orbits("orbits.txt");
 #ifdef LIBPNG
         //output_png("pngs/");
