@@ -65,7 +65,7 @@ double a[] = // in AU
   	23., 	// gap 2
   	46., 	// gap 5
   	55.,	// gap 6
-  	66.  	// gap 7
+	72.
 };
 
 #ifdef OPENGL
