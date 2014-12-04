@@ -56,16 +56,18 @@ void append_orbits(char *filename);
 void check_jumps();
 const double mjup = 9.54e-4; // solar masses
 
-const int Nplanets = 5;
+const double smallfac = 5; // factor by which to make planets 3 and 4 less massive by
+const int Nplanets = 6;
 const double dr_thresh = 5; // if deltar changes by more than this thresh, exit (either because ae > thresh, or delta a > thresh between checks)
 double a[] = // in AU
 {
 	0.,		// placeholder for star (have to calc COM)
   	9.,   	// gap 1
   	23., 	// gap 2
-  	46., 	// gap 5
-  	55.,	// gap 6
-  	66.  	// gap 7
+  	30.,	// weak
+  	37.,	// weak
+  	51.,	// gap 6
+	72.
 };
 
 #ifdef OPENGL
@@ -112,8 +114,14 @@ void problem_init(int argc, char* argv[]){
 		double inc = tools_rayleigh(sigma_i);
 		double e = tools_rayleigh(sigma_e);
 
-		struct particle p = tools_init_orbit3d(starmass, massfac*mjup, a[i], e, inc, Omega, omega, f);
-		particles_add(p);
+		if(i==3 || i==4){
+			struct particle p = tools_init_orbit3d(starmass, massfac*mjup/smallfac, a[i], e, inc, Omega, omega, f);
+			particles_add(p);
+		}
+		else{
+			struct particle p = tools_init_orbit3d(starmass, massfac*mjup, a[i], e, inc, Omega, omega, f);
+			particles_add(p);
+		}
 	}
 		
     tau_a = calloc(sizeof(double),N);
