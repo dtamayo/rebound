@@ -56,7 +56,7 @@ void append_orbits(char *filename);
 void check_jumps();
 const double mjup = 9.54e-4; // solar masses
 
-const int Nplanets = 5;
+const int Nplanets = 3;
 const double dr_thresh = 5; // if deltar changes by more than this thresh, exit (either because ae > thresh, or delta a > thresh between checks)
 double a[] = // in AU
 {
