@@ -1,0 +1,6 @@
+#!/bin/bash
+./nbody --restart restart15.bin --it=15
+./nbody --restart restart16.bin --it=16
+./nbody --restart restart17.bin --it=17
+./nbody --restart restart18.bin --it=18
+./nbody --restart restart19.bin --it=19
