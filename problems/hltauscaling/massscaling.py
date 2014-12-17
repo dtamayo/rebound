@@ -28,7 +28,7 @@ of = open("mmasterbatch", "w")
 of.write("#!/bin/bash\n")
 
 for q in range(numcores):
-    of.write("mbatch%d\n"%(q))
+    of.write("./mbatch%d\n"%(q))
 of.close()
 call("chmod u=rwx mmasterbatch", shell=True)
 

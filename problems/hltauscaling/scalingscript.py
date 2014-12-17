@@ -20,7 +20,7 @@ of = open("masterbatch", "w")
 of.write("#!/bin/bash\n")
 
 for q in range(numcores):
-    of.write("batch%d\n"%(q))
+    of.write("./batch%d\n"%(q))
 of.close()
 call("chmod u=rwx masterbatch", shell=True)
 
