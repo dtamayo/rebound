@@ -70,7 +70,6 @@ double 	integrator_min_dt 			= 0;	// Minimum timestep used as a floor when adapt
 unsigned long integrator_iterations_max_exceeded= 0;	// Count how many times the iteration did not converge
 const double safety_factor 			= 0.25;	// Maximum increase/deacrease of consecutve timesteps.
 
-
 // Gauss Radau spacings
 const double h[8]	= { 0.0, 0.0562625605369221464656521910, 0.1802406917368923649875799428, 0.3526247171131696373739077702, 0.5471536263305553830014485577, 0.7342101772154105410531523211, 0.8853209468390957680903597629, 0.9775206135612875018911745004}; 
 // Other constants
@@ -102,6 +101,88 @@ double dt_last_success = 0.;			// Last accepted timestep (corresponding to br an
 void copybuffers(double* _a[7], double* _b[7], int N3);
 void predict_next_step(double ratio, int N3, double* _e[7], double* _b[7]);
 
+// MEGNO helper routines
+// Weights for integration of a first order differential equation (Note: interval length = 2) 
+const double w[8] = {0.03125, 0.185358154802979278540728972807180754479812609, 0.304130620646785128975743291458180383736715043, 0.376517545389118556572129261157225608762708603, 0.391572167452493593082499533303669362149363727, 0.347014795634501068709955597003528601733139176, 0.249647901329864963257869294715235590174262844, 0.114508814744257199342353731044292225247093225};
+double integrator_megno_Ys;
+double integrator_megno_Yss;
+void integrator_megno_init(double delta){
+	N_megno = N;
+	integrator_megno_Ys = 0.;
+	integrator_megno_Yss = 0.;
+        for (int i=0;i<N_megno;i++){ 
+                struct particle megno = {
+			.m  = particles[i].m,
+			.x  = delta*tools_normal(1.),
+			.y  = delta*tools_normal(1.),
+			.z  = delta*tools_normal(1.),
+			.vx = delta*tools_normal(1.),
+			.vy = delta*tools_normal(1.),
+			.vz = delta*tools_normal(1.) };
+                particles_add(megno);
+        }
+}
+double integrator_megno(){
+	if (t==0.) return 0.;
+	return integrator_megno_Yss/t;
+}
+double integrator_megno_deltad_delta2(){
+        double deltad = 0;
+        double delta2 = 0;
+        for (int i=N-N_megno;i<N;i++){
+                deltad += particles[i].vx * particles[i].x; 
+                deltad += particles[i].vy * particles[i].y; 
+                deltad += particles[i].vz * particles[i].z; 
+                deltad += particles[i].ax * particles[i].vx; 
+                deltad += particles[i].ay * particles[i].vy; 
+                deltad += particles[i].az * particles[i].vz; 
+                delta2 += particles[i].x  * particles[i].x; 
+                delta2 += particles[i].y  * particles[i].y;
+                delta2 += particles[i].z  * particles[i].z;
+                delta2 += particles[i].vx * particles[i].vx; 
+                delta2 += particles[i].vy * particles[i].vy;
+                delta2 += particles[i].vz * particles[i].vz;
+        }
+        return deltad/delta2;
+}
+void integrator_megno_calculate_acceleration(){
+#pragma omp parallel for schedule(guided)
+	for (int i=N-N_megno; i<N; i++){
+	for (int j=N-N_megno; j<N; j++){
+		if (i==j) continue;
+		const double dx = particles[i-N/2].x - particles[j-N/2].x;
+		const double dy = particles[i-N/2].y - particles[j-N/2].y;
+		const double dz = particles[i-N/2].z - particles[j-N/2].z;
+		const double r = sqrt(dx*dx + dy*dy + dz*dz + softening*softening);
+		const double r3inv = 1./(r*r*r);
+		const double r5inv = 3./(r*r*r*r*r);
+		const double ddx = particles[i].x - particles[j].x;
+		const double ddy = particles[i].y - particles[j].y;
+		const double ddz = particles[i].z - particles[j].z;
+		const double Gm = G * particles[j].m;
+		
+		// Variational equations
+		particles[i].ax += Gm * (
+			+ ddx * ( dx*dx*r5inv - r3inv )
+			+ ddy * ( dx*dy*r5inv )
+			+ ddz * ( dx*dz*r5inv )
+			);
+
+		particles[i].ay += Gm * (
+			+ ddx * ( dy*dx*r5inv )
+			+ ddy * ( dy*dy*r5inv - r3inv )
+			+ ddz * ( dy*dz*r5inv )
+			);
+
+		particles[i].az += Gm * (
+			+ ddx * ( dz*dx*r5inv )
+			+ ddy * ( dz*dy*r5inv )
+			+ ddz * ( dz*dz*r5inv - r3inv )
+			);
+	}
+	}
+}
+
 // Do nothing here. This is only used in a leapfrog-like DKD integrator. IAS15 performs one complete timestep.
 void integrator_part1(){
 }
@@ -113,6 +194,9 @@ void integrator_update_acceleration(){
 	PROFILING_STOP(PROFILING_CAT_INTEGRATOR)
 	PROFILING_START()
 	gravity_calculate_acceleration();
+	if (N_megno){
+		integrator_megno_calculate_acceleration();
+	}
 	if (problem_additional_forces) problem_additional_forces();
 	PROFILING_STOP(PROFILING_CAT_GRAVITY)
 	PROFILING_START()
@@ -159,6 +243,9 @@ int integrator_ias15_step() {
 	}
 	
 	// integrator_update_acceleration(); // Not needed. Forces are already calculated in main routine.
+	if (N_megno){
+		integrator_megno_calculate_acceleration();
+	}
 
 	for(int k=0;k<N;k++) {
 		x0[3*k]   = particles[k].x;
@@ -180,6 +267,12 @@ int integrator_ias15_step() {
 		g[4][k] = b[6][k]*d[19] + b[5][k]*d[14] + b[4][k];
 		g[5][k] = b[6][k]*d[20] + b[5][k];
 		g[6][k] = b[6][k];
+	}
+
+	double integrator_megno_thisdt;
+	double integrator_megno_thisdt_init;
+	if (N_megno){
+		integrator_megno_thisdt_init = w[0]* t * integrator_megno_deltad_delta2();
 	}
 
 	double t_beginning = t;
@@ -210,6 +303,8 @@ int integrator_ias15_step() {
 		predictor_corrector_error = 0;
 		iterations++;
 
+		integrator_megno_thisdt = integrator_megno_thisdt_init;
+
 		for(int n=1;n<8;n++) {							// Loop over interval using Gauss-Radau spacings
 
 			s[0] = dt * h[n];
@@ -237,8 +332,7 @@ int integrator_ias15_step() {
 				double xk2  = csx[k2] + (s[8]*b[6][k2] + s[7]*b[5][k2] + s[6]*b[4][k2] + s[5]*b[3][k2] + s[4]*b[2][k2] + s[3]*b[1][k2] + s[2]*b[0][k2] + s[1]*a0[k2] + s[0]*v0[k2] );
 				particles[i].z = xk2 + x0[k2];
 			}
-			
-			if (problem_additional_forces && integrator_force_is_velocitydependent){
+			if (N_megno || (problem_additional_forces && integrator_force_is_velocitydependent)){
 				s[0] = dt * h[n];
 				s[1] =      s[0] * h[n] / 2.;
 				s[2] = 2. * s[1] * h[n] / 3.;
@@ -264,6 +358,9 @@ int integrator_ias15_step() {
 
 
 			integrator_update_acceleration();				// Calculate forces at interval n
+			if (N_megno){
+				integrator_megno_thisdt += w[n] * t * integrator_megno_deltad_delta2();
+			}
 
 			for(int k=0;k<N;++k) {
 				at[3*k]   = particles[k].ax;
@@ -478,8 +575,16 @@ int integrator_ias15_step() {
 	}
 
 	t += dt_done;
-	// Swap particle buffers
 
+	if (N_megno){
+		// Calculate running Y(t)
+		integrator_megno_Ys += dt_done*integrator_megno_thisdt;
+		double Y = integrator_megno_Ys/t;
+		// Calculate averge <Y> 
+		integrator_megno_Yss += Y * dt_done;
+	}
+
+	// Swap particle buffers
 	for(int k=0;k<N;++k) {
 		particles[k].x = x0[3*k+0];	// Set final position
 		particles[k].y = x0[3*k+1];
