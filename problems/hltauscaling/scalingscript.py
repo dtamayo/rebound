@@ -7,10 +7,10 @@ import numpy as np
 from subprocess import call
 
 mass = 5.11e-2
-numiter=1
-numcores=1
+numiter=20
+numcores=20
 
-delta = np.linspace(1,2,3)
+delta = np.linspace(1.,6.,51)
 
 itspercore = numiter/numcores
 print("%s iterations on each core"%(itspercore))
@@ -20,7 +20,7 @@ of = open("masterbatch", "w")
 of.write("#!/bin/bash\n")
 
 for q in range(numcores):
-    of.write("./batch%d\n"%(q))
+    of.write("qsub batch%d\n"%(q))
 of.close()
 call("chmod u=rwx masterbatch", shell=True)
 
