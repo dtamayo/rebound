@@ -114,6 +114,15 @@ struct particle tools_init_orbit3d(double M, double m, double a, double e, doubl
 struct orbit tools_p2orbit(struct particle p, struct particle star);
 
 /**
+ * This function returns p/a, a conserved quantity in the general 3-body problem.  This value determines whether the bodies can undergo close encounters or not (see Gladman 1993 Eq. 12)
+ * @param G Gravitational constant.
+ * @param p1 first particle
+ * @param p2 second particle
+ * @param p3 third particle
+ */
+double tools_p_over_a(double G, struct particle p1, struct particle p2, struct particle p3);
+
+/**
  * Move to center of momentum and center of mass frame.
  */
 void tools_move_to_center_of_momentum();
