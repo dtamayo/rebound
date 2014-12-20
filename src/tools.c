@@ -212,6 +212,37 @@ struct particle tools_init_orbit3d(double M, double m, double a, double e, doubl
 	return p;
 }
 
+double tools_p_over_a(double G, struct particle p1, struct particle p2, struct particle p3){ // calculates the p over a value (conserved quantity in 3-body problem) for the 3-body sub-system of p1,p2 and p3 (see Eq. 12 of Gladman 1993)
+	double h0 = 0.;
+	double h1 = 0.;
+	double h2 = 0.;
+
+	double E = 0.; // energy (h in the notation of Gladman93)
+
+	h0 += p1.m*(p1.y*p1.vz - p1.z*p1.vy);
+	h1 += p1.m*(p1.z*p1.vx - p1.x*p1.vz);
+	h2 += p1.m*(p1.x*p1.vy - p1.y*p1.vx);
+
+	h0 += p2.m*(p2.y*p2.vz - p2.z*p2.vy);
+	h1 += p2.m*(p2.z*p2.vx - p2.x*p2.vz);
+	h2 += p2.m*(p2.x*p2.vy - p2.y*p2.vx);
+
+	h0 += p3.m*(p3.y*p3.vz - p3.z*p3.vy);
+	h1 += p3.m*(p3.z*p3.vx - p3.x*p3.vz);
+	h2 += p3.m*(p3.x*p3.vy - p3.y*p3.vx);
+
+	E += 0.5*p1.m*(p1.vx*p1.vx + p1.vy*p1.vy + p1.vz*p1.vz);
+	E += 0.5*p2.m*(p2.vx*p2.vx + p2.vy*p2.vy + p2.vz*p2.vz);
+	E += 0.5*p3.m*(p3.vx*p3.vx + p3.vy*p3.vy + p3.vz*p3.vz);
+	E += -G*p3.m*p1.m / sqrt((p3.x - p1.x)*(p3.x - p1.x) + (p3.y - p1.y)*(p3.y - p1.y) + (p3.z - p1.z)*(p3.z - p1.z));
+	E += -G*p3.m*p2.m / sqrt((p3.x - p2.x)*(p3.x - p2.x) + (p3.y - p2.y)*(p3.y - p2.y) + (p3.z - p2.z)*(p3.z - p2.z));
+	E += -G*p2.m*p1.m / sqrt((p2.x - p1.x)*(p2.x - p1.x) + (p2.y - p1.y)*(p2.y - p1.y) + (p2.z - p1.z)*(p2.z - p1.z));
+
+	double Masterisk = p3.m*p1.m + p3.m*p2.m + p1.m*p2.m;
+
+	return -2*(p1.m+p2.m+p3.m)/G/G/Masterisk/Masterisk/Masterisk*E*(h0*h0 + h1*h1 + h2*h2);
+}
+
 #define TINY 1.0e-12
 struct orbit tools_p2orbit(struct particle p, struct particle star){
 	struct orbit o;
