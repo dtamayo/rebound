@@ -38,10 +38,15 @@
 #include "main.h"
 #include "boundaries.h"
 #include "tree.h"
+#include "particle.h"
+#include "tools.h"
 
 int nghostx = 0;
 int nghosty = 0;
 int nghostz = 0;
+
+int track_IDs = 0;
+int track_conservation = 0;
 
 void boundaries_check(){
 	for (int i=0;i<N;i++){
@@ -70,9 +75,72 @@ void boundaries_check(){
 				exit(0);
 			}
 #ifndef TREE
-			particles[i] = particles[N-1];
-			i--;
-			N--;
+			if(track_conservation == 1){
+				FILE* of = fopen("ejections.txt","a");
+				if (of==NULL){
+				   	printf("\n\nError while opening ejections file");
+				   	exit(1);
+				}
+
+				fprintf(of, "%d\n",particle_IDs[i]);
+				fclose(of);
+
+				of = fopen("ej_cons.txt","a");
+				if (of==NULL){
+				   	printf("\n\nError while opening the ejection conservation file");
+				   	exit(1);
+				}
+
+				fprintf(of, "***Particle %d was ejected***\n", i);
+				double Eprev = tools_get_total_E();
+				double Eejected = tools_particle_E(i);
+
+				double* Lprev = calloc(sizeof(double), 3);
+				double* Lejected = calloc(sizeof(double), 3);
+				tools_get_total_L_vec(Lprev);
+				tools_particle_L_vec(i, Lejected);
+
+				particles[i] = particles[N-1];
+				if(track_IDs == 1){
+					particle_IDs[i] = particle_IDs[N-1];
+				}
+				i--;
+				N--;
+
+				double Eafter = tools_get_total_E();
+				fprintf(of, "Frac. E of ej. particle = %.3e\n", Eejected/Eprev);
+				fprintf(of, "delta E = %.15e\n", Eafter + Eejected - Eprev);
+
+				double* Lafter = calloc(sizeof(double), 3);
+				tools_get_total_L_vec(Lafter);
+				fprintf(of, "Frac. L of ej. particle = %.3e\n", sqrt(Lejected[0]*Lejected[0] + Lejected[1]*Lejected[1] + Lejected[2]*Lejected[2])/sqrt(Lprev[0]*Lprev[0] + Lprev[1]*Lprev[1] + Lprev[2]*Lprev[2]));
+				fprintf(of, "delta (Lx, Ly, Lz) = (%.15e, %.15e, %.15e)\n\n", Lafter[0] + Lejected[0] - Lprev[0], Lafter[1] + Lejected[1] - Lprev[1], Lafter[2] + Lejected[2] - Lprev[2]);
+
+				double Ecom = tools_com_ke();
+				double* Lcom = calloc(sizeof(double), 3);
+				tools_com_L_vec(Lcom);
+
+				tools_move_to_center_of_momentum();
+
+				double Efinal =  tools_get_total_E();
+				double* Lfinal = calloc(sizeof(double), 3);
+				tools_get_total_L_vec(Lfinal);
+
+				fprintf(of, "Frac. E in COM = %.3e\n", Ecom/Eafter);
+				fprintf(of, "delta E = %.15e\n", Efinal + Ecom - Eafter);
+				fprintf(of, "Frac. L in COM = %.3e\n", sqrt(Lcom[0]*Lcom[0] + Lcom[1]*Lcom[1] + Lcom[2]*Lcom[2])/sqrt(Lafter[0]*Lafter[0] + Lafter[1]*Lafter[1] + Lafter[2]*Lafter[2]));
+				fprintf(of, "delta (Lx, Ly, Lz) = (%.15e, %.15e, %.15e)\n\n", Lfinal[0] + Lcom[0] - Lafter[0], Lfinal[1] + Lcom[1] - Lafter[1], Lfinal[2] + Lcom[2] - Lafter[2]);
+
+				Eadj += Eejected + Ecom; // update the energy adjustment from ejected particles
+				for(int j=0;j<3;j++){
+					Ladj[j] += Lejected[j] + Lcom[j];
+				}
+			}
+			else{
+				particles[i] = particles[N-1];
+				i--;
+				N--;
+			}
 #endif
 		}
 	}
@@ -116,3 +184,12 @@ int boundaries_particle_is_in_box(struct particle p){
 	return 1;
 }
 
+void boundaries_track_IDs(){
+	track_IDs = 1;
+}
+
+void boundaries_track_conservation(){
+	track_conservation = 1;
+	Eadj = 0.; // initialize adjustment values of E and L for when particles leave box
+	Ladj = calloc(sizeof(double),3);
+}

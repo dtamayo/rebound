@@ -62,6 +62,13 @@ struct particle {
  */
 extern struct particle* particles;
 
+/**
+ * Keeps track of which particle index corresponds to which ID
+ * Need this since particles array gets rearranged when one leaves box
+ */
+
+extern int* particle_IDs;
+
 /** 
  * Adds a particle to the simulation. 
  * @details If a tree is used, it also adds the particle to the tree.
@@ -91,5 +98,10 @@ void particles_add_local(struct particle pt);
  * @param pt Particle to be checked.
  */
 int particles_get_rootbox_for_particle(struct particle pt);
+
+/**
+ * Initializes the particle_IDs array to keep track of which particle is which
+ */
+void particles_assign_IDs();
 
 #endif // _PARTICLE_H

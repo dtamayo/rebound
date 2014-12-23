@@ -212,7 +212,20 @@ struct particle tools_init_orbit3d(double M, double m, double a, double e, doubl
 	return p;
 }
 
-double tools_p_over_a(double G, struct particle p1, struct particle p2, struct particle p3){ // calculates the p over a value (conserved quantity in 3-body problem) for the 3-body sub-system of p1,p2 and p3 (see Eq. 12 of Gladman 1993)
+double tools_particle_E(int i)
+{
+	double E = 0.;
+
+	E += 0.5*particles[i].m*(particles[i].vx*particles[i].vx + particles[i].vy*particles[i].vy + particles[i].vz*particles[i].vz);
+	for(int j=0;j<N;j++){ // loop over all the particles with higher ID (ones with lower ID will already have been calculated on a previous i value)
+		if(j==i){	continue;	}
+		E += -G*particles[i].m*particles[j].m / sqrt((particles[j].x - particles[i].x)*(particles[j].x - particles[i].x) + (particles[j].y - particles[i].y)*(particles[j].y - particles[i].y) + (particles[j].z - particles[i].z)*(particles[j].z - particles[i].z));
+	}
+
+	return E;
+}
+
+double tools_p_over_a(double G, struct particle p1, struct particle p2, struct particle p3){
 	double h0 = 0.;
 	double h1 = 0.;
 	double h2 = 0.;
@@ -241,6 +254,105 @@ double tools_p_over_a(double G, struct particle p1, struct particle p2, struct p
 	double Masterisk = p3.m*p1.m + p3.m*p2.m + p1.m*p2.m;
 
 	return -2*(p1.m+p2.m+p3.m)/G/G/Masterisk/Masterisk/Masterisk*E*(h0*h0 + h1*h1 + h2*h2);
+}
+
+void tools_com_L_vec(double* L){
+	struct particle com;
+
+	com.m = 0.;
+	com.x = 0.;
+	com.y = 0.;
+	com.z = 0.;
+	com.vx = 0.;
+	com.vy = 0.;
+	com.vz = 0.;
+
+	for(int i=0;i<N;i++){
+		com.m += particles[i].m;
+		com.x += particles[i].m*particles[i].x;
+		com.y += particles[i].m*particles[i].y;
+		com.z += particles[i].m*particles[i].z;
+		com.vx += particles[i].m*particles[i].vx;
+		com.vy += particles[i].m*particles[i].vy;
+		com.vz += particles[i].m*particles[i].vz;
+	}
+
+	com.x /= com.m;
+	com.y /= com.m;
+	com.z /= com.m;
+	com.vx /= com.m;
+	com.vy /= com.m;
+	com.vz /= com.m;
+
+	L[0] = com.m*(com.y*com.vz - com.z*com.vy);
+	L[1] = com.m*(com.z*com.vx - com.x*com.vz);
+	L[2] = com.m*(com.x*com.vy - com.y*com.vx);
+}
+
+double tools_com_ke(){
+	double M = 0.;
+	for(int i=0;i<N;i++){
+		M += particles[i].m;
+	}
+
+	double px = 0.;
+	double py = 0.;
+	double pz = 0.;
+
+	for(int i=0;i<N;i++){
+		px += particles[i].m*particles[i].vx;
+		py += particles[i].m*particles[i].vy;
+		pz += particles[i].m*particles[i].vz;
+	}
+
+	return 0.5*(px*px + py*py + pz*pz)/M; // KE_COM = p_COM^2/2M
+}
+double tools_get_total_E(){
+	double E = 0.;
+
+	for(int i=0;i<N;i++){
+		E += 0.5*particles[i].m*(particles[i].vx*particles[i].vx + particles[i].vy*particles[i].vy + particles[i].vz*particles[i].vz);
+		if(i < N-1){ // if it's the last particle, all the interaction energies with it have already been calculated, so skip
+			for(int j=i+1;j<N;j++){ // loop over all the particles with higher ID (ones with lower ID will already have been calculated on a previous i value)
+				E += -G*particles[i].m*particles[j].m / sqrt((particles[j].x - particles[i].x)*(particles[j].x - particles[i].x) + (particles[j].y - particles[i].y)*(particles[j].y - particles[i].y) + (particles[j].z - particles[i].z)*(particles[j].z - particles[i].z));
+			}
+		}
+	}
+
+	return E;
+}
+
+void tools_particle_L_vec(int i, double* L){
+	L[0] += particles[i].m*(particles[i].y*particles[i].vz - particles[i].z*particles[i].vy);
+	L[1] += particles[i].m*(particles[i].z*particles[i].vx - particles[i].x*particles[i].vz);
+	L[2] += particles[i].m*(particles[i].x*particles[i].vy - particles[i].y*particles[i].vx);
+
+}
+
+void tools_get_total_L_vec(double* L){
+	L[0] = 0.;
+	L[1] = 0.;
+	L[2] = 0.;
+
+	for(int i=0;i<N;i++){
+		L[0] += particles[i].m*(particles[i].y*particles[i].vz - particles[i].z*particles[i].vy);
+		L[1] += particles[i].m*(particles[i].z*particles[i].vx - particles[i].x*particles[i].vz);
+		L[2] += particles[i].m*(particles[i].x*particles[i].vy - particles[i].y*particles[i].vx);
+	}
+}
+
+double tools_get_total_L(){
+	double Lx = 0.;
+	double Ly = 0.;
+	double Lz = 0.;
+
+	for(int i=0;i<N;i++){
+		Lx += particles[i].m*(particles[i].y*particles[i].vz - particles[i].z*particles[i].vy);
+		Ly += particles[i].m*(particles[i].z*particles[i].vx - particles[i].x*particles[i].vz);
+		Lz += particles[i].m*(particles[i].x*particles[i].vy - particles[i].y*particles[i].vx);
+	}
+
+	return sqrt(Lx*Lx + Ly*Ly + Lz*Lz);
 }
 
 #define TINY 1.0e-12

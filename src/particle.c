@@ -32,8 +32,10 @@
 #include "tree.h"
 #include "collisions.h"
 #include "communication_mpi.h"
+#include "boundaries.h"
 
 struct particle* 	particles;	
+int* particle_IDs;
 
 int N 		= 0;	
 int Nmax	= 0;	
@@ -123,3 +125,13 @@ int particles_get_rootbox_for_particle(struct particle pt){
 	return index;
 }
 
+void particles_assign_IDs()
+{
+	boundaries_track_IDs();
+	particle_IDs = calloc(sizeof(int),N);
+	for(int i=0;i<N;i++){
+		particle_IDs[i] = i;
+	}
+
+	return;
+}
