@@ -60,7 +60,7 @@ const int Nplanets = 4;
 const double dr_thresh = 5; // if deltar changes by more than this thresh, exit (either because ae > thresh, or delta a > thresh between checks)
 double a[] = // in AU
 {
-	0.,		// placeholder for star (have to calc COM)
+	0.,		// star
   	9.,   	// gap 1
   	23., 	// gap 2
   	51.,

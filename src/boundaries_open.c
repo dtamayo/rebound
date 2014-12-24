@@ -141,6 +141,34 @@ void boundaries_check(){
 				i--;
 				N--;
 			}
+
+			if(N==2){
+				exit_simulation = 1;
+				char* end = "endcondition.txt"; // end of simulation time
+				FILE* of = fopen(end, "w");
+				if (of==NULL){
+				    printf("\n\nError while opening file '%s'.\n", end);
+				    return;
+				}
+				fprintf(of, "2\n"); // simulation ended because went down to 2 planets
+				fclose(of);
+			}
+
+			if(N==3){
+				double poveracrit = 1. + pow(3, 4./3.)*particles[1].m*particles[2].m/pow(particles[0].m, 2./3.)/pow(particles[1].m+particles[2].m, 4./3.);
+
+				if(tools_p_over_a(G, particles[0], particles[1], particles[2]) > poveracrit){
+					exit_simulation = 1;
+					char* end = "endcondition.txt"; // end of simulation time
+					FILE* of = fopen(end, "w");
+					if (of==NULL){
+					    printf("\n\nError while opening file '%s'.\n", end);
+					    return;
+					}
+					fprintf(of, "3\n"); // simulation ended because went down to 3 planets with H and E above critical value for Hill stability (Gladman 1993)
+					fclose(of);
+				}
+			}
 #endif
 		}
 	}

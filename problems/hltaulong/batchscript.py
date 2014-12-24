@@ -7,33 +7,24 @@ Created on Oct 9, 2014
 import numpy as np
 from subprocess import call
 
-tauis= [-1,1e10] # use -1 to use same as taue
+tauis= [-1] # use -1 to use same as taue
 
 numiter=20
-numcores=2
+numcores=20
 
-massmin = 5
-massmax = 1000
-Nmass = 10
-
-tauemin = 1e4
-tauemax = 1e8
-Ntaues = 5
+massmin = 29.24
+massmax = 29.24
+Nmass = 1
 
 k = 100
 starmass = 0.55
-sigmae = 0.05
+sigmae = 0.01
 
 if Nmass == 1:
     deltamass=0
 else:
     deltamass = (np.log(massmax)-np.log(massmin))/(Nmass-1)
     
-if Ntaues == 1:
-    deltataue=0
-else:
-    deltataue = (np.log(tauemax) - np.log(tauemin))/(Ntaues-1)
-
 mearth = 0.00314635457 # in mjup
 
 itspercore = numiter/numcores
@@ -58,7 +49,7 @@ for taui in tauis:
         of.write("#PBS -l nodes=1:ppn=1\n")
         of.write("#PBS -q workq\n")
         of.write("#PBS -r n\n")
-        of.write("#PBS -l walltime=12:00:00\n")
+        of.write("#PBS -l walltime=47:30:00\n")
         of.write("#PBS -N taui=%0.2e_%d\n"%(taui,q))
         of.write("# EVERYTHING ABOVE THIS COMMENT IS NECESSARY, SHOULD ONLY CHANGE nodes,ppn,walltime and my_job_name VALUES\n")
         of.write("cd $PBS_O_WORKDIR\n")
@@ -76,12 +67,6 @@ for taui in tauis:
                 for k in range(q*itspercore,(q+1)*itspercore):
                     logmass = np.log(massmin) + j*deltamass
                     mass = pow(np.e,logmass)
-                    logtaue = np.log(tauemin) + i*deltataue
-                    taue = pow(np.e,logtaue)
-                    if taui == -1:
-                        of.write("./nbody --mass=%0.2e --taue=%0.e --sigmae=%0.e --it=%d\n"%(mass*mearth,taue,sigmae,k))
-                    else:
-                        of.write("./nbody --mass=%0.2e --taue=%0.e --taui=%0.e --sigmae=%0.e --it=%d\n"%(mass*mearth,taue,taui,sigmae,k))
-                
+                    of.write("./nbody --mass=%0.2e --sigmae=%0.e --it=%d\n"%(mass*mearth,taue,sigmae,k))
         of.close()
         call("chmod u=rwx taui=%0.2e_%d"%(taui,q), shell=True)

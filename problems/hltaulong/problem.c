@@ -50,19 +50,21 @@
 void append_orbits();
 const double mjup = 9.54e-4; // solar masses
 
+double outputcadence = 500.;
 double Nplanets = 5;
 double a[] = // in AU
 {
 	0.,		// placeholder for star (have to calc COM)
   	9.,   	// gap 1
   	23., 	// gap 2
-  	27., 	// gap 5
+  	46., 	// gap 5
   	55.,	// gap 6
   	66.  	// gap 7
 };
 
 double E0;
 double* L0;
+double ethresh=0.1;
 
 #ifdef OPENGL
 extern int display_wire;
@@ -83,7 +85,7 @@ void problem_init(int argc, char* argv[]){
 #ifdef OPENGL
 	display_wire	= 1;			// Show orbits.
 #endif // OPENGL
-	init_boxwidth(138); 			// Using no boundary conditions now, so particles aren't removed beyond this dist.  This is just for graphics box size
+	init_boxwidth(400); 			// Using no boundary conditions now, so particles aren't removed beyond this dist.  This is just for graphics box size
 
 	// Initial conditions
 	
@@ -104,7 +106,6 @@ void problem_init(int argc, char* argv[]){
 		double f = (float)rand()/RAND_MAX*2*M_PI;
 		double inc = tools_rayleigh(sigma_i);
 		double e = tools_rayleigh(sigma_e);
-
 		struct particle p = tools_init_orbit3d(starmass, massfac*mjup, a[i], e, inc, Omega, omega, f);
 		particles_add(p);
 	}
@@ -140,7 +141,7 @@ void problem_inloop(){
 void append_orbits(){
 	struct particle com = particles[0];
 	for (int i=1;i<N;i++){
-		char filename[50];
+		char filename[20];
 		sprintf(filename, "orbit%d.txt", particle_IDs[i]);
 		FILE* of = fopen(filename,"a");
 		if (of==NULL){
@@ -150,12 +151,27 @@ void append_orbits(){
 		struct orbit o = tools_p2orbit(particles[i],com);
 		fprintf(of,"%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\n",t,o.a,o.e,o.inc,o.Omega,o.omega,o.l,o.P,o.f);
 		fclose(of);
+		if(1.-o.e < ethresh){
+			char efile[20];
+			sprintf(efile, "restart%.1e.bin", ethresh);
+			output_binary(efile);
+			of = fopen("restarts.txt", "a");
+			if (of==NULL){
+				printf("\n\nError while opening file '%s'.\n",filename);
+				return;
+			}
+			fprintf(of, "%e\t%d\t%e\n", t, particle_IDs[i], 1.- o.e);
+			ethresh /= 10.;
+			fclose(of);
+		}
 		com = tools_get_center_of_mass(com,particles[i]);
 	}
+
+
 }
 
 void problem_output(){
-	if (output_check(500.)){
+	if (output_check(outputcadence)){
 		output_timing();
 		append_orbits();
 #ifdef LIBPNG
@@ -173,6 +189,17 @@ void problem_finish(){
 	}
 	fprintf(of, "%.3e", t);
 	fclose(of);
+
+	if(t > tmax-outputcadence){
+		char* end = "endcondition.txt"; // end of simulation time
+		of = fopen(end, "w");
+		if (of==NULL){
+		    printf("\n\nError while opening file '%s'.\n", end);
+		    return;
+		}
+		fprintf(of, "1\n"); // simulation ended because we reached tmax
+		fclose(of);
+	}
 
     char* finalstate = "finalstate.txt"; // orb elements of particles at end of simulation
     of = fopen(finalstate, "w");
