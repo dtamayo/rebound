@@ -131,6 +131,7 @@ void boundaries_check(){
 				fprintf(of, "Frac. L in COM = %.3e\n", sqrt(Lcom[0]*Lcom[0] + Lcom[1]*Lcom[1] + Lcom[2]*Lcom[2])/sqrt(Lafter[0]*Lafter[0] + Lafter[1]*Lafter[1] + Lafter[2]*Lafter[2]));
 				fprintf(of, "delta (Lx, Ly, Lz) = (%.15e, %.15e, %.15e)\n\n", Lfinal[0] + Lcom[0] - Lafter[0], Lfinal[1] + Lcom[1] - Lafter[1], Lfinal[2] + Lcom[2] - Lafter[2]);
 
+				fclose(of);
 				Eadj += Eejected + Ecom; // update the energy adjustment from ejected particles
 				for(int j=0;j<3;j++){
 					Ladj[j] += Lejected[j] + Lcom[j];

@@ -50,7 +50,8 @@
 void append_orbits();
 const double mjup = 9.54e-4; // solar masses
 
-double outputcadence = 500.;
+double outputcadence = 10000.;
+double savecadence = 1.e8;
 double Nplanets = 5;
 double a[] = // in AU
 {
@@ -80,12 +81,12 @@ void problem_init(int argc, char* argv[]){
     double it = input_get_double(argc,argv,"it",0);							// iteration (running several realizations of same set of parameters)
 
     dt  		= 0.01;				// in years.  Innermost would have P ~25 yrs for 1 solar mass star.  IAS15 is adaptive anyway
-	tmax		= 1e6;
+	tmax		= 1e10;
 	G		  	= 4*M_PI*M_PI;		// units of years, AU and solar masses.
 #ifdef OPENGL
 	display_wire	= 1;			// Show orbits.
 #endif // OPENGL
-	init_boxwidth(400); 			// Using no boundary conditions now, so particles aren't removed beyond this dist.  This is just for graphics box size
+	init_boxwidth(1000);
 
 	// Initial conditions
 	
@@ -122,6 +123,7 @@ void problem_init(int argc, char* argv[]){
 	tools_get_total_L_vec(L0);
 
     output_append_orbits("ini.txt");
+    output_binary("ini.bin");
 	
 #ifdef LIBPNG
     system("mkdir pngs");
@@ -178,6 +180,26 @@ void problem_output(){
         //output_png("pngs/");
 #endif
 	}
+	if (output_check(savecadence)){
+		output_binary("temp.bin");
+	}
+	char* cons = "conservation.txt";
+	FILE* of = fopen(cons, "w");
+	if (of==NULL){
+		printf("\n\nError while opening file '%s'.\n", cons);
+	  	return;
+	}
+	double dE = tools_get_total_E() + Eadj - E0; // take final energy, add the adjustments from ejections and recenterings to new COMs and subtract initial E
+	fprintf(of, "%.15e\n", dE/E0);
+
+	double* Lf = calloc(sizeof(double),3);
+	double* dL = calloc(sizeof(double),3);
+	tools_get_total_L_vec(Lf);
+	for(int j=0;j<3;j++){
+	 	dL[j] = Lf[j] + Ladj[j] - L0[j];
+	  	fprintf(of, "%.15e\n", dL[j]/L0[j]);
+	}
+	fclose(of);
 }
 
 void problem_finish(){
@@ -215,6 +237,8 @@ void problem_finish(){
     }
     fclose(of);
 
+    output_binary("finalstate.bin");
+
     char* cons = "conservation.txt";
     of = fopen(cons, "w");
     if (of==NULL){
@@ -232,6 +256,4 @@ void problem_finish(){
     	fprintf(of, "%.15e\n", dL[j]/L0[j]);
     }
     fclose(of);
-
-    output_binary("restart.bin");
 }
