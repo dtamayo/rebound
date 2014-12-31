@@ -125,13 +125,15 @@ int particles_get_rootbox_for_particle(struct particle pt){
 	return index;
 }
 
+
 void particles_assign_IDs()
 {
+#ifdef BOUNDAIRES_OPEN
 	boundaries_track_IDs();
 	particle_IDs = calloc(sizeof(int),N);
 	for(int i=0;i<N;i++){
 		particle_IDs[i] = i;
 	}
-
+#endif
 	return;
 }
