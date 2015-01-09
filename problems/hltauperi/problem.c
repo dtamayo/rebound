@@ -56,15 +56,19 @@ void append_orbits(char *filename);
 void check_jumps();
 const double mjup = 9.54e-4; // solar masses
 
-const int Nplanets = 5;
+double poeps = 0.;
+double gam = 1.5;
+double Rc = 80.;
+double alpha;
+const int Nplanets = 1;
 const double dr_thresh = 5; // if deltar changes by more than this thresh, exit (either because ae > thresh, or delta a > thresh between checks)
 double a[] = // in AU
 {
 	0.,		// placeholder for star (have to calc COM)
-  	9.,   	// gap 1
-  	23., 	// gap 2
-  	46., 	// gap 5
-  	55.,	// gap 6
+  	//9.,   	// gap 1
+  	//23., 	// gap 2
+  	//46., 	// gap 5
+  	//55.,	// gap 6
   	66.  	// gap 7
 };
 
@@ -77,11 +81,11 @@ void problem_init(int argc, char* argv[]){
     
     double massfac = input_get_double(argc,argv,"mass",1); // in jup masses
     double starmass = input_get_double(argc,argv,"starmass",0.55); // in solar masses
-    double taue = input_get_double(argc,argv,"taue",10000);
+    double taue = input_get_double(argc,argv,"taue",1e4);
     double taui = input_get_double(argc,argv,"taui",taue);					// by default use same as taue
     double k = input_get_double(argc,argv,"k",100);
-    double sigma_e = input_get_double(argc,argv,"sigmae",0.01); 			// scale of eccentricity rayleigh distribution
-    double sigma_i = input_get_double(argc,argv,"sigmai",sigma_e); 			// scale of inclination rayleigh distribution.  By default use same as sigma_e value
+    double sigma_e = input_get_double(argc,argv,"sigmae",0.03); 			// scale of eccentricity rayleigh distribution
+    double sigma_i = input_get_double(argc,argv,"sigmai",0); 			// scale of inclination rayleigh distribution.  By default use same as sigma_e value
     double it = input_get_double(argc,argv,"it",0);							// iteration (running several realizations of same set of parameters)
 
     dt  		= 0.01;				// in years.  Innermost would have P ~25 yrs for 1 solar mass star.  IAS15 is adaptive anyway
@@ -105,6 +109,7 @@ void problem_init(int argc, char* argv[]){
 	star.m  = starmass;			// This is a sub-solar mass star
 	particles_add(star);
 
+	alpha = G*starmass/Rc/Rc*poeps/(1.-gam/2.);
     for (int i=1;i<=Nplanets;i++){			// initialize the planets first, then initialize star so that center of mass is fixed at 0
 		double Omega = (float)rand()/RAND_MAX*2*M_PI;;
 		double omega = (float)rand()/RAND_MAX*2*M_PI;;
@@ -119,7 +124,7 @@ void problem_init(int argc, char* argv[]){
     tau_a = calloc(sizeof(double),N);
 	tau_e = calloc(sizeof(double),N);
 	tau_i = calloc(sizeof(double),N);
-    
+
     for(int j=1;j<=Nplanets;++j){
         tau_a[j] = taue*k;
         tau_e[j] = taue;
@@ -185,7 +190,7 @@ void problem_migration_forces(){
 				if (tau_e[i]!=0){					// Eccentricity damping
 					const double a = -mu/( v*v - 2.*mu/r );			// semi major axis
 					const double prefac1 = 1./(1.-e*e) /tau_e[i]/1.5;
-					const double prefac2 = 1./(r*h) * sqrt(mu/a/(1.-e*e))/(1.-e*e)/tau_e[i]/1.5;
+					const double prefac2 = 1./(r*h) * sqrt(mu/a/(1.-e*e))/tau_e[i]/1.5; // original implementation.  Will contribute to adot at order e^2.  Needs to for overstability (Goldreich 2014)
 					p->ax += -dvx*prefac1 + (hy*dz-hz*dy)*prefac2;
 					p->ay += -dvy*prefac1 + (hz*dx-hx*dz)*prefac2;
 					p->az += -dvz*prefac1 + (hx*dy-hy*dx)*prefac2;
@@ -197,9 +202,13 @@ void problem_migration_forces(){
 					p->ay += prefac*dvy;
 					p->az += prefac*dvz;
 				}
+				double aoverr = -alpha/r; //*pow(Rc/r, gam)/r;
+				p->ax += aoverr*dx;
+				p->ay += aoverr*dy;
+				p->az += aoverr*dz;
 			}
-
 		}
+
 		com = tools_get_center_of_mass(com,particles[i]);
 	}
 }
@@ -258,15 +267,12 @@ void check_jumps(){
 }
 
 void problem_output(){
-	if (output_check(1000.*dt)){
-		//output_timing();
-		append_orbits("orbits.txt");
+	if (output_check(1000.)){
+		output_timing();
+		output_append_orbits("orbits.txt");
 #ifdef LIBPNG
         //output_png("pngs/");
 #endif
-	}
-	if (output_check(1000.)){
-		check_jumps();
 	}
 }
 

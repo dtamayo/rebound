@@ -75,7 +75,7 @@ def megno(par):
 
 
 ### Setup grid and run many simulations in parallel
-N = 12                      # Grid size, increase this number to see more detail
+N = 2                     # Grid size, increase this number to see more detail
 P = np.linspace(23.,31.,N)  # range of saturn period in years
 e = np.linspace(0.,0.5,N)   # range of saturn eccentricity
 v = []
