@@ -1,5 +1,6 @@
 from ctypes import *
 # Try to load libias15 from the obvioud places it could be in.
+
 try:
     libias15 = CDLL('../../shared/libias15.so', RTLD_GLOBAL)
 except:
@@ -9,7 +10,7 @@ except:
         try:
             libias15 = CDLL('shared/libias15.so', RTLD_GLOBAL)
         except:
-            print "Cannot find library 'libias15.so'. Check path set in 'rebound.py'."
+            print("Cannot find library 'libias15.so'. Check path set in 'rebound.py'.")
             raise
 
 

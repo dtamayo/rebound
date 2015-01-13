@@ -1,4 +1,5 @@
 import sys; sys.path.append('../')
+print(sys.version)
 import rebound
 # Import other modules
 import numpy
@@ -7,28 +8,15 @@ import os
 import pytools
 import random
 import matplotlib.pyplot as plt
-from scipy.signal import argrelextrema
-
-def smooth(x,window_len=11,window='hanning'):
-        if x.ndim != 1:
-                raise ValueError, "smooth only accepts 1 dimension arrays."
-        if x.size < window_len:
-                raise ValueError, "Input vector needs to be bigger than window size."
-        if window_len<3:
-                return x
-        if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
-                raise ValueError, "Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'"
-        s=numpy.r_[2*x[0]-x[window_len-1::-1],x,2*x[-1]-x[-1:-window_len:-1]]
-        if window == 'flat': #moving average
-                w=numpy.ones(window_len,'d')
-        else:  
-                w=eval('numpy.'+window+'(window_len)')
-        y=numpy.convolve(w/w.sum(),s,mode='same')
-        return y[window_len:-window_len+1]
+import scipy.signal as signal
 
 def getPeriods(t,x,y):
     r = numpy.sqrt(x**2+y**2)
-    minindices = argrelextrema(r,numpy.less)
+    f,Pper_spec = signal.welch(r,0.01,'flattop', scaling='spectrum')
+    plt.semilogy(f,Pper_spec)
+    plt.grid()
+    plt.show()
+    #minindices = argrelextrema(r,numpy.less)
     #xsmooth = smooth(x[minindices],window_len=10,window='hanning')
     #perieq0indices = argrelextrema(xsmooth,numpy.greater)
 
@@ -50,9 +38,9 @@ Nplanets = 2
 a = [42.,53.]       # AU
 M = 5.5e-5          # solar masses
 e = 0.01
-i = 1.e-8
+i = 0.01
 
-tmax = 3.e3
+tmax = 2.e5
 
 # Add particles
 sun = rebound.Particle(m=starmass,x=0.,y=0.,z=0.,vx=0.,vy=0.,vz=0.)
@@ -62,12 +50,25 @@ tau_a = numpy.zeros(Nplanets)
 tau_e = numpy.zeros(Nplanets)
 tau_i = numpy.zeros(Nplanets)
 
-for i in range(Nplanets):
-    rebound.particle_add(pytools.add_planet_3D(G,sun,M,a[i],0.6,0.,0.,0.,0.,MEAN=False))
+print("***Before adding particle to rebound***")
+print(sun.x)
+print(sun.y)
+for j in range(Nplanets):
+    p = pytools.add_planet_3D(G,sun,M,a[j],e,i,0.,0.,0.,MEAN=False)
+    print(p.x)
+    print(p.y)
+    rebound.particle_add(p)
+    #rebound.particle_add(pytools.add_planet_3D(G,sun,M,a[j],e,i,0.,0.,0.,MEAN=False))
     #rebound.particle_add(pytools.add_planet_3D(G,sun,M,a[i],e,i,random.uniform(0,2*math.pi),random.uniform(0,2*math.pi),random.uniform(0,2*math.pi)))
-    tau_a[i] = -1.5e7 if i==0 else 0.
-    tau_e[i] = 10000
-    tau_i[i] = tau_e[i]
+    tau_a[j] = -1.5e7 if j==0 else 0.
+    tau_e[j] = 10000.
+    tau_i[j] = tau_e[j]
+
+particles = rebound.particles_get()
+print("***After adding particle to rebound***")
+for j in range(rebound.get_N()):
+    print(particles[j].x)
+    print(particles[j].y)
     
 rebound.move_to_center_of_momentum()
 # Get the particle data
@@ -77,7 +78,7 @@ particles = rebound.particles_get()
 steps = 0 
 
 last_t = 0
-outputdelta=1.
+outputdelta=100.
 xs = numpy.zeros((rebound.get_N(),numpy.round(tmax/outputdelta)))
 ys = numpy.zeros((rebound.get_N(),numpy.round(tmax/outputdelta)))
 ts = numpy.zeros(numpy.round(tmax/outputdelta))
@@ -95,7 +96,6 @@ while rebound.get_t()<tmax:
         N_output += 1
         last_t = t
 
-print(N_output)
 #assumes no particles lost
 _xs = numpy.zeros((rebound.get_N(),N_output))
 _ys = numpy.zeros((rebound.get_N(),N_output))
@@ -104,7 +104,7 @@ _ts = ts[:N_output]
 _xs = xs[::,:N_output]
 _ys = ys[::,:N_output]
 
-getPeriods(_ts[:100],_xs[1][:100],_ys[1][:100])
+getPeriods(_ts,_xs[1],_ys[1])
 
 fig, ax = plt.subplots(figsize=(6,6))
 ax.scatter(_xs[1],_ys[1])
