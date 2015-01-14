@@ -14,7 +14,7 @@ except:
             raise
 
 
-# Defines the same datastructure as in particle.h
+# Defines the same data structure as in particle.h
 class Particle(Structure):
     _fields_ = [("x", c_double),
                 ("y", c_double),
@@ -26,6 +26,19 @@ class Particle(Structure):
                 ("ay", c_double),
                 ("az", c_double),
                 ("m", c_double) ]
+    
+# Defines the same data structure as in tools.h
+class Orbit(Structure):
+    _fields_ = [("a", c_double),    # semimajor axis
+                ("r", c_double),    # radial distance from reference
+                ("h", c_double),    # angular momentum 
+                ("P", c_double),    # orbital period
+                ("l", c_double),    # mean longitude
+                ("e", c_double),    # eccentricity
+                ("inc", c_double),  # inclination
+                ("Omega", c_double),# longitude of ascending node
+                ("omega", c_double),# argument of perihelion
+                ("f", c_double) ]    # true anomaly
 
 # Set function pointer for additional forces
 

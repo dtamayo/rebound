@@ -1,5 +1,4 @@
 import sys; sys.path.append('../')
-print(sys.version)
 import rebound
 # Import other modules
 import numpy
@@ -10,102 +9,133 @@ import random
 import matplotlib.pyplot as plt
 import scipy.signal as signal
 
-def getPeriods(t,x,y):
-    r = numpy.sqrt(x**2+y**2)
-    f,Pper_spec = signal.welch(r,0.01,'flattop', scaling='spectrum')
-    plt.semilogy(f,Pper_spec)
-    plt.grid()
-    plt.show()
-    #minindices = argrelextrema(r,numpy.less)
-    #xsmooth = smooth(x[minindices],window_len=10,window='hanning')
-    #perieq0indices = argrelextrema(xsmooth,numpy.greater)
-
-    fig, ax = plt.subplots(figsize=(6,6))
-    ax.plot(t,r)
-
-    plt.show()
-
-    #precessionperiod = t[minindices][perieq0indices][1] - t[minindices][perieq0indices][0]
-    #orbP = t[minindices[0][1]]-t[minindices[0][0]]
-    #precPinorb = precessionperiod/orbP
-# Set variables (defaults are G=1, t=0, dt=0.01)
+# function to calculate the non-keplerian forces
+def additional_forces():
+    com = particles[0] # calculate forces with respect to center of mass
+    for i in range(1,N):
+        if (tau_e[i]!=0 or tau_a[i]!=0):
+            p = particles[i]
+            dvx = p.vx-com.vx
+            dvy = p.vy-com.vy
+            dvz = p.vz-com.vz
+            
+            if tau_a[i]>0.:     # Migration is on
+                p.ax -=  dvx/(2.*tau_a[i])
+                p.ay -=  dvy/(2.*tau_a[i])
+                p.az -=  dvz/(2.*tau_a[i])
+            
+            # For ecc or inc damping, need h and e vectors
+            if (tau_e[i]!=0 or tau_i[i]!=0): 
+                mu = G*(com.m + p.m)
+                dx = p.x-com.x
+                dy = p.y-com.y
+                dz = p.z-com.z
+                
+                hx = dy*dvz - dz*dvy
+                hy = dz*dvx - dx*dvz
+                hz = dx*dvy - dy*dvx
+                h = numpy.sqrt ( hx*hx + hy*hy + hz*hz )
+                v = numpy.sqrt ( dvx*dvx + dvy*dvy + dvz*dvz )
+                r = numpy.sqrt ( dx*dx + dy*dy + dz*dz )
+                vr = (dx*dvx + dy*dvy + dz*dvz)/r
+                ex = 1./mu*( (v*v-mu/r)*dx - r*vr*dvx )
+                ey = 1./mu*( (v*v-mu/r)*dy - r*vr*dvy )
+                ez = 1./mu*( (v*v-mu/r)*dz - r*vr*dvz )
+                e = numpy.sqrt( ex*ex + ey*ey + ez*ez )    # eccentricity
+                 
+                if (tau_e[i]!=0):                           # ecc damping
+                    a = -mu/( v*v - 2.*mu/r )               # semimajor axis
+                    prefac1 = 1./(1.-e*e) /tau_e[i]/1.5
+                    prefac2 = 1./(r*h) * numpy.sqrt(mu/a/(1.-e*e))/tau_e[i]/1.5
+                    p.ax += -dvx*prefac1 + (hy*dz-hz*dy)*prefac2
+                    p.ay += -dvy*prefac1 + (hz*dx-hx*dz)*prefac2
+                    p.az += -dvz*prefac1 + (hx*dy-hy*dx)*prefac2
+                
+                if (tau_i[i]!=0):                           # inc damping
+                    p.az += -2*dvz/tau_i[i]
+                    prefac = (hx*hx + hy*hy)/h/h/tau_i[i]
+                    p.ax += prefac*dvx
+                    p.ay += prefac*dvy
+                    p.az += prefac*dvz
+        
+        com = pytools.get_center_of_mass(com,particles[i])
 
 G = 4.*math.pi**2
 rebound.set_G(G)  
 
-starmass = 0.55;    # in solar masses
-Nplanets = 2    
-a = [42.,53.]       # AU
-M = 5.5e-5          # solar masses
+starmass = 0.55     # in solar masses
+N = 3               # including central star    
+a = [0.,42.,53.]    # AU
+M = 1.e-4           # solar masses
 e = 0.01
-i = 0.01
+i = 1.e-8
+taue=10000.
+taua=-taue*100
+outputdelta=100.
 
-tmax = 2.e5
+tmax = 1.e4
 
 # Add particles
 sun = rebound.Particle(m=starmass,x=0.,y=0.,z=0.,vx=0.,vy=0.,vz=0.)
 rebound.particle_add(sun)                  # Star at origin (zeros by default for pos & vel)
 
-tau_a = numpy.zeros(Nplanets)
-tau_e = numpy.zeros(Nplanets)
-tau_i = numpy.zeros(Nplanets)
+tau_a = numpy.zeros(N)             # include star and ignore the 0 index
+tau_e = numpy.zeros(N)             # so we can use same numbers in 
+tau_i = numpy.zeros(N)             # additional_forces
 
-print("***Before adding particle to rebound***")
-print(sun.x)
-print(sun.y)
-for j in range(Nplanets):
-    p = pytools.add_planet_3D(G,sun,M,a[j],e,i,0.,0.,0.,MEAN=False)
-    print(p.x)
-    print(p.y)
-    rebound.particle_add(p)
-    #rebound.particle_add(pytools.add_planet_3D(G,sun,M,a[j],e,i,0.,0.,0.,MEAN=False))
-    #rebound.particle_add(pytools.add_planet_3D(G,sun,M,a[i],e,i,random.uniform(0,2*math.pi),random.uniform(0,2*math.pi),random.uniform(0,2*math.pi)))
-    tau_a[j] = -1.5e7 if j==0 else 0.
-    tau_e[j] = 10000.
+for j in range(1,N):
+    rebound.particle_add(pytools.add_planet_3D(G,sun,M,a[j],e,i,0.,0.,0.))
+    #rebound.particle_add(pytools.add_planet_3D(G,sun,M,a[j],e,i,random.uniform(0,2*math.pi),random.uniform(0,2*math.pi),random.uniform(0,2*math.pi)))
+    tau_a[j] = taua if j==1 else 0.
+    tau_e[j] = taue
     tau_i[j] = tau_e[j]
 
-particles = rebound.particles_get()
-print("***After adding particle to rebound***")
-for j in range(rebound.get_N()):
-    print(particles[j].x)
-    print(particles[j].y)
-    
 rebound.move_to_center_of_momentum()
-# Get the particle data
-# Note: this is a pointer and will automatically update as the simulation progresses
 particles = rebound.particles_get()
+if (N != rebound.get_N()): raise ValueError("Number of objects added != # in simulation")
+
+rebound.set_additional_forces(additional_forces)
+
 # timestep counter
 steps = 0 
 
-last_t = 0
-outputdelta=100.
+last_t = -1e6
+
 xs = numpy.zeros((rebound.get_N(),numpy.round(tmax/outputdelta)))
 ys = numpy.zeros((rebound.get_N(),numpy.round(tmax/outputdelta)))
+zs = numpy.zeros((rebound.get_N(),numpy.round(tmax/outputdelta)))
 ts = numpy.zeros(numpy.round(tmax/outputdelta))
 N_output = 0
 
 while rebound.get_t()<tmax:
-    rebound.step()
     t = rebound.get_t()
     if t - last_t > outputdelta:
         ts[N_output] = t
         for i in range(rebound.get_N()):
             xs[i,N_output] = particles[i].x
             ys[i,N_output] = particles[i].y
+            zs[i,N_output] = particles[i].z
             
         N_output += 1
         last_t = t
-
+    rebound.step()
+    
 #assumes no particles lost
 _xs = numpy.zeros((rebound.get_N(),N_output))
 _ys = numpy.zeros((rebound.get_N(),N_output))
+_zs = numpy.zeros((rebound.get_N(),N_output))
 
 _ts = ts[:N_output]
 _xs = xs[::,:N_output]
 _ys = ys[::,:N_output]
+_zs = zs[::,:N_output]
 
-getPeriods(_ts,_xs[1],_ys[1])
+print(numpy.sqrt(_xs[1]**2 + _ys[1]**2))
 
-fig, ax = plt.subplots(figsize=(6,6))
-ax.scatter(_xs[1],_ys[1])
+#pytools.plot_freq_spectrum(_ts,_xs[1],2*numpy.pi/2.e6, 2*numpy.pi/100.,log=False)
+#print(2*numpy.pi/plot_freq_spectrum(_ts,_xs[1],2*numpy.pi/2.e6, 2*numpy.pi/100.,log=False))
+#getPeriods(_ts,_xs[1],_ys[1],_zs[1])
+
+#fig, ax = plt.subplots(figsize=(6,6))
+#ax.scatter(_xs[1],_ys[1])
 plt.show()
