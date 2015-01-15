@@ -81,7 +81,7 @@ void problem_init(int argc, char* argv[]){
     double it = input_get_double(argc,argv,"it",0);							// iteration (running several realizations of same set of parameters)
 
     dt  		= 0.01;				// in years.  Innermost would have P ~25 yrs for 1 solar mass star.  IAS15 is adaptive anyway
-	tmax		= 1e3;
+	tmax		= 1e6;
 	G		  	= 4*M_PI*M_PI;		// units of years, AU and solar masses.
 #ifdef OPENGL
 	display_wire	= 1;			// Show orbits.

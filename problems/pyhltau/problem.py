@@ -19,7 +19,7 @@ def additional_forces():
             dvy = p.vy-com.vy
             dvz = p.vz-com.vz
             
-            if tau_a[i]>0.:     # Migration is on
+            if tau_a[i]!=0.:     # Migration is on
                 p.ax -=  dvx/(2.*tau_a[i])
                 p.ay -=  dvy/(2.*tau_a[i])
                 p.az -=  dvz/(2.*tau_a[i])
@@ -62,6 +62,7 @@ def additional_forces():
 
 G = 4.*math.pi**2
 rebound.set_G(G)  
+#rebound.set_dt(0.0001) 
 
 starmass = 0.55     # in solar masses
 N = 3               # including central star    
@@ -69,11 +70,11 @@ a = [0.,42.,53.]    # AU
 M = 1.e-4           # solar masses
 e = 0.01
 i = 1.e-8
-taue=10000.
+taue=1.e4
 taua=-taue*100
-outputdelta=100.
+outputdelta=10000.
 
-tmax = 1.e4
+tmax = 1.e6
 
 # Add particles
 sun = rebound.Particle(m=starmass,x=0.,y=0.,z=0.,vx=0.,vy=0.,vz=0.)
@@ -115,6 +116,7 @@ while rebound.get_t()<tmax:
             xs[i,N_output] = particles[i].x
             ys[i,N_output] = particles[i].y
             zs[i,N_output] = particles[i].z
+            #print(particles[i].x)
             
         N_output += 1
         last_t = t
