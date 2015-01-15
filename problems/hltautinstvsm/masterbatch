@@ -1,0 +1,20 @@
+#!/bin/bash
+qsub a3_66_da_0.45_q1.0
+qsub a3_66_da_0.45_q1.5
+qsub a3_66_da_0.45_q2.0
+qsub a3_66_da_0.45_q2.5
+qsub a3_66_da_0.45_q3.0
+qsub a3_66_da_0.45_q3.5
+qsub a3_66_da_0.45_q4.0
+qsub a3_66_da_0.45_q4.5
+qsub a3_66_da_0.45_q5.0
+qsub a3_66_da_0.45_q5.5
+qsub a3_66_da_0.45_q6.0
+qsub a3_66_da_0.45_q6.5
+qsub a3_66_da_0.45_q7.0
+qsub a3_66_da_0.45_q7.5
+qsub a3_66_da_0.45_q8.0
+qsub a3_66_da_0.45_q8.5
+qsub a3_66_da_0.45_q9.0
+qsub a3_66_da_0.45_q9.5
+qsub a3_66_da_0.45_q10.0

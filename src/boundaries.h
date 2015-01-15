@@ -32,6 +32,8 @@
 #ifndef _BOUNDARIES_H
 #define _BOUNDARIES_H
 
+double Eadj;
+double* Ladj;
 /**
  * This struct containes the relative position and velocity of a boundary box.
  * It is sometimes also used as the relative position and velocity of a 
@@ -60,6 +62,16 @@ void boundaries_check();
  * @param k Index in z direction.
  */
 struct ghostbox boundaries_get_ghostbox(int i, int j, int k);
+
+/**
+ * Set flag if we want to track IDs
+ */
+void boundaries_track_IDs();
+
+/**
+ * Track conservation of energy and angular momentum when particles leave box
+ */
+void boundaries_track_conservation();
 
 extern int nghostx;	/**< Number of ghostboxes in x direction. */
 extern int nghosty;	/**< Number of ghostboxes in y direction. */

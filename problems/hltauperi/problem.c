@@ -51,20 +51,26 @@ double* tau_a; 	/**< Migration timescale in years for all particles */
 double* tau_e; 	/**< Eccentricity damping timescale in years for all particles */
 double* tau_i;  /**< Inclination damping timescale in years for all particles */
 
+void write_r(char * filename);
 void problem_migration_forces();
 void append_orbits(char *filename);
 void check_jumps();
 const double mjup = 9.54e-4; // solar masses
 
-const int Nplanets = 4;
+double poeps = 0.01;
+double gam = 1.5;
+double Rc = 80.;
+double alpha;
+const int Nplanets = 1;
 const double dr_thresh = 5; // if deltar changes by more than this thresh, exit (either because ae > thresh, or delta a > thresh between checks)
 double a[] = // in AU
 {
-	0.,		// star
-  	9.,   	// gap 1
-  	23., 	// gap 2
-  	51.,
-	66.
+	0.,		// placeholder for star (have to calc COM)
+  	//9.,   	// gap 1
+  	//23., 	// gap 2
+  	//46., 	// gap 5
+  	//55.,	// gap 6
+  	66.  	// gap 7
 };
 
 #ifdef OPENGL
@@ -76,15 +82,15 @@ void problem_init(int argc, char* argv[]){
     
     double massfac = input_get_double(argc,argv,"mass",1); // in jup masses
     double starmass = input_get_double(argc,argv,"starmass",0.55); // in solar masses
-    double taue = input_get_double(argc,argv,"taue",10000);
+    double taue = input_get_double(argc,argv,"taue",1.e20);
     double taui = input_get_double(argc,argv,"taui",taue);					// by default use same as taue
     double k = input_get_double(argc,argv,"k",100);
     double sigma_e = input_get_double(argc,argv,"sigmae",0.01); 			// scale of eccentricity rayleigh distribution
-    double sigma_i = input_get_double(argc,argv,"sigmai",sigma_e); 			// scale of inclination rayleigh distribution.  By default use same as sigma_e value
+    double sigma_i = input_get_double(argc,argv,"sigmai",0); 			// scale of inclination rayleigh distribution.  By default use same as sigma_e value
     double it = input_get_double(argc,argv,"it",0);							// iteration (running several realizations of same set of parameters)
 
     dt  		= 0.01;				// in years.  Innermost would have P ~25 yrs for 1 solar mass star.  IAS15 is adaptive anyway
-	tmax		= 1e6;
+	tmax		= 2e5;
 	G		  	= 4*M_PI*M_PI;		// units of years, AU and solar masses.
 #ifdef OPENGL
 	display_wire	= 1;			// Show orbits.
@@ -98,27 +104,39 @@ void problem_init(int argc, char* argv[]){
 	srand(tim.tv_usec);
 	
 	struct particle star;
-	star.x  = 0; star.y  = 0; star.z  = 0;
-	star.vx = 0; star.vy = 0; star.vz = 0;
-	star.ax = 0; star.ay = 0; star.az = 0;
+	star.x  = 0.; star.y  = 0.; star.z  = 0.;
+	star.vx = 0.; star.vy = 0.; star.vz = 0.;
+	star.ax = 0.; star.ay = 0.; star.az = 0.;
 	star.m  = starmass;			// This is a sub-solar mass star
 	particles_add(star);
 
-    for (int i=1;i<=Nplanets;i++){			// initialize the planets first, then initialize star so that center of mass is fixed at 0
-		double Omega = (float)rand()/RAND_MAX*2*M_PI;;
-		double omega = (float)rand()/RAND_MAX*2*M_PI;;
-		double f = (float)rand()/RAND_MAX*2*M_PI;;
-		double inc = tools_rayleigh(sigma_i);
-		double e = tools_rayleigh(sigma_e);
+	alpha = G*starmass/Rc/Rc*poeps/(1.-gam/2.);
+	struct particle com = particles[0];
 
-		struct particle p = tools_init_orbit3d(starmass, massfac*mjup, a[i], e, inc, Omega, omega, f);
+	double phis[Nplanets+1];
+    for (int i=1;i<=Nplanets;i++){
+    	phis[i] = (float)rand()/RAND_MAX*2*M_PI;
+		struct particle p;
+		p.x = a[i]*cos(phis[i]); p.y = a[i]*sin(phis[i]); p.z = 0.;
+		p.m = massfac*mjup;
 		particles_add(p);
+		com = tools_get_center_of_mass(com,particles[i]);
 	}
-		
+
+    for (int i=1;i<=Nplanets;i++){
+    	double dx = particles[i].x - com.x;
+    	double dy = particles[i].y - com.y;
+    	double dz = particles[i].z - com.z;
+    	double r = sqrt(dx*dx + dy*dy + dz*dz);
+    	double vcirc = sqrt(G*starmass/a[i] + alpha*Rc*pow(Rc/r, gam-1));
+    	particles[i].vx = -vcirc*sin(phis[i]); particles[i].vy = vcirc*cos(phis[i]); particles[i].vz = 0.;
+    	//p.ax = 0.; p.ay = 0.; p.az = 0.;
+    }
+
     tau_a = calloc(sizeof(double),N);
 	tau_e = calloc(sizeof(double),N);
 	tau_i = calloc(sizeof(double),N);
-    
+
     for(int j=1;j<=Nplanets;++j){
         tau_a[j] = taue*k;
         tau_e[j] = taue;
@@ -184,7 +202,7 @@ void problem_migration_forces(){
 				if (tau_e[i]!=0){					// Eccentricity damping
 					const double a = -mu/( v*v - 2.*mu/r );			// semi major axis
 					const double prefac1 = 1./(1.-e*e) /tau_e[i]/1.5;
-					const double prefac2 = 1./(r*h) * sqrt(mu/a/(1.-e*e))/(1.-e*e)/tau_e[i]/1.5;
+					const double prefac2 = 1./(r*h) * sqrt(mu/a/(1.-e*e))/tau_e[i]/1.5; // original implementation.  Will contribute to adot at order e^2.  Needs to for overstability (Goldreich 2014)
 					p->ax += -dvx*prefac1 + (hy*dz-hz*dy)*prefac2;
 					p->ay += -dvy*prefac1 + (hz*dx-hx*dz)*prefac2;
 					p->az += -dvz*prefac1 + (hx*dy-hy*dx)*prefac2;
@@ -197,14 +215,39 @@ void problem_migration_forces(){
 					p->az += prefac*dvz;
 				}
 			}
-
 		}
+
 		com = tools_get_center_of_mass(com,particles[i]);
 	}
+	struct particle* p = &(particles[1]);
+	com = tools_get_center_of_mass(particles[0],particles[1]);
+	const double dx = p->x-com.x;
+	const double dy = p->y-com.y;
+	const double dz = p->z-com.z;
+	const double r = sqrt(dx*dx+dy*dy+dz*dz);
+	double aoverr = -alpha*pow(Rc/r, gam)/r;
+	p->ax += aoverr*dx;
+	p->ay += aoverr*dy;
+	p->az += aoverr*dz;
+
 }
 void problem_inloop(){
 }
 
+void write_r(char * filename){
+	FILE* of = fopen(filename,"a");
+	if (of==NULL){
+		printf("\n\nError while opening file '%s'.\n",filename);
+		return;
+	}
+	struct particle com = tools_get_center_of_mass(particles[0],particles[1]);
+	double dx = particles[1].x - com.x;
+	double dy = particles[1].y - com.y;
+	double dz = particles[1].z - com.z;
+	fprintf(of,"%.8f\t%.8f\t%.8f\t%.8f\n",t,sqrt(dx*dx + dy*dy + dz*dz), dx, dy);
+
+	fclose(of);
+}
 void append_orbits(char *filename){
 	/*FILE* of = fopen(filename,"a");
 	if (of==NULL){
@@ -257,15 +300,14 @@ void check_jumps(){
 }
 
 void problem_output(){
-	if (output_check(1000.*dt)){
-		//output_timing();
-		append_orbits("orbits.txt");
+	if (output_check(10.)){
+		output_timing();
+		output_append_orbits("orbits.txt");
+		write_r("rs.txt");
+		tools_move_to_center_of_momentum();
 #ifdef LIBPNG
         //output_png("pngs/");
 #endif
-	}
-	if (output_check(1000.)){
-		check_jumps();
 	}
 }
 
