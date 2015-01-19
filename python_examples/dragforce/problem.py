@@ -2,6 +2,8 @@
 import sys; sys.path.append('../')
 import rebound
 from rebound import Particle
+import math
+import matplotlib.pyplot as plt
 
 # Add particles
 # We work in units where G=1.  
@@ -19,7 +21,7 @@ rebound.move_to_center_of_momentum()
 particles = rebound.particles_get()                     # Pointer to the particle structure
 N = rebound.get_N()                 
 def dragforce():
-    dragcoefficient = 1e-2
+    dragcoefficient = 0.#1e-2
     for i in range(N):
         particles[i].ax += -dragcoefficient * particles[i].vx
         particles[i].ay += -dragcoefficient * particles[i].vy
@@ -33,4 +35,4 @@ rebound.integrate(100.)
 
 # Output something at the end (the planet will be at ~0.1 AU)
 for i in range(N):
-    print particles[i].x, particles[i].y, particles[i].z
+    print(math.sqrt(particles[i].x**2+particles[i].y**2))

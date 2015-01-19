@@ -93,6 +93,7 @@ void step(){
 	integrator_part1();
 	gravity_calculate_acceleration();
 	if (problem_additional_forces) problem_additional_forces();
+
 	integrator_part2();
 }
 
@@ -194,6 +195,7 @@ struct ghostbox boundaries_get_ghostbox(int i, int j, int k){
 double *tau_a, *tau_e, *tau_i;
 
 void additional_forces(){
+	printf("Hi\n");
 	struct particle com = particles[0]; // calculate migration forces with respect to center of mass;
 	for(int i=1;i<N;i++){
 		if (tau_e[i] != 0. || tau_a[i] != 0.){
