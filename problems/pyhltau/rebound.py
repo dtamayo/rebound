@@ -13,6 +13,11 @@ except:
             print("Cannot find library 'libias15.so'. Check path set in 'rebound.py'.")
             raise
 
+try:
+    problem_tools = CDLL('problem_tools.so', RTLD_GLOBAL)
+except:
+    print("Couldn't find problem_tools.so")
+    raise
 
 # Defines the same data structure as in particle.h
 class Particle(Structure):
@@ -28,17 +33,18 @@ class Particle(Structure):
                 ("m", c_double) ]
     
 # Defines the same data structure as in tools.h
-class Orbit(Structure):
-    _fields_ = [("a", c_double),    # semimajor axis
-                ("r", c_double),    # radial distance from reference
-                ("h", c_double),    # angular momentum 
-                ("P", c_double),    # orbital period
-                ("l", c_double),    # mean longitude
-                ("e", c_double),    # eccentricity
-                ("inc", c_double),  # inclination
-                ("Omega", c_double),# longitude of ascending node
-                ("omega", c_double),# argument of perihelion
-                ("f", c_double) ]    # true anomaly
+class Orbit():
+    def __init__(self):
+        self.a      =   None    # semimajor axis
+        self.r      =   None    # radial distance from reference
+        self.h      =   None    # angular momentum 
+        self.P      =   None    # orbital period
+        self.l      =   None    # mean longitude = Omega + omega + M
+        self.e      =   None    # eccentricity
+        self.inc    =   None    # inclination
+        self.Omega  =   None    # longitude of ascending node
+        self.omega  =   None    # argument of perihelion
+        self.f      =   None    # true anomaly
 
 # Set function pointer for additional forces
 
@@ -47,11 +53,17 @@ fp = None
 def set_additional_forces(func):
     global fp  # keep references
     fp = AFF(func)
-    libias15.set_additional_forces(fp)
+    libias15.set_additional_forces(func)
 
+def init_damping_forces():
+    libias15.init_damping_forces()
+    
 # Setter/getter of parameters and constants
 def set_G(G):
     c_double.in_dll(libias15, "G").value = G
+
+def get_G():
+    return c_double.in_dll(libias15, "G").value
 
 def set_dt(dt):
     c_double.in_dll(libias15, "dt").value = dt
@@ -78,7 +90,18 @@ def get_megno():
 def get_N():
     return c_int.in_dll(libias15,"N").value 
 
-
+def add_migration(tau_a):
+    arr = (c_double * get_N())(*tau_a)
+    libias15.add_migration(byref(arr))
+    
+def add_e_damping(tau_e):
+    arr = (c_double * get_N())(*tau_e)
+    libias15.add_e_damping(byref(arr))
+    
+def add_i_damping(tau_i):
+    arr = (c_double * get_N())(*tau_i)
+    libias15.add_i_damping(byref(arr))
+    
 # Setter/getter of particle data
 def set_particles(particles):
     c_int.in_dll(libias15,"N").value = len(particles)

@@ -61,6 +61,7 @@ double poeps = 0.01;
 double gam = 1.5;
 double Rc = 80.;
 double alpha;
+double mdisk;
 const int Nplanets = 1;
 const double dr_thresh = 5; // if deltar changes by more than this thresh, exit (either because ae > thresh, or delta a > thresh between checks)
 double a[] = // in AU
@@ -80,13 +81,11 @@ extern int display_wire;
 void problem_init(int argc, char* argv[]){
 	// Setup constants
     
-    double massfac = input_get_double(argc,argv,"mass",1); // in jup masses
+    double massfac = input_get_double(argc,argv,"mass",1.e-8); // in jup masses
     double starmass = input_get_double(argc,argv,"starmass",0.55); // in solar masses
     double taue = input_get_double(argc,argv,"taue",1.e20);
-    double taui = input_get_double(argc,argv,"taui",taue);					// by default use same as taue
     double k = input_get_double(argc,argv,"k",100);
     double sigma_e = input_get_double(argc,argv,"sigmae",0.01); 			// scale of eccentricity rayleigh distribution
-    double sigma_i = input_get_double(argc,argv,"sigmai",0); 			// scale of inclination rayleigh distribution.  By default use same as sigma_e value
     double it = input_get_double(argc,argv,"it",0);							// iteration (running several realizations of same set of parameters)
 
     dt  		= 0.01;				// in years.  Innermost would have P ~25 yrs for 1 solar mass star.  IAS15 is adaptive anyway
@@ -103,44 +102,32 @@ void problem_init(int argc, char* argv[]){
 	gettimeofday(&tim, NULL);
 	srand(tim.tv_usec);
 	
+	alpha = G*starmass/Rc/Rc*poeps/(1.-gam/2.);
+	mdisk = 3.65557*starmass*poeps; // see folded page in notebook
+
 	struct particle star;
 	star.x  = 0.; star.y  = 0.; star.z  = 0.;
 	star.vx = 0.; star.vy = 0.; star.vz = 0.;
 	star.ax = 0.; star.ay = 0.; star.az = 0.;
-	star.m  = starmass;			// This is a sub-solar mass star
+	star.m  = starmass + mdisk;			// throw mass of disk into star
 	particles_add(star);
 
-	alpha = G*starmass/Rc/Rc*poeps/(1.-gam/2.);
-	struct particle com = particles[0];
-
-	double phis[Nplanets+1];
     for (int i=1;i<=Nplanets;i++){
-    	phis[i] = (float)rand()/RAND_MAX*2*M_PI;
+    	double phi = (float)rand()/RAND_MAX*2*M_PI;
 		struct particle p;
-		p.x = a[i]*cos(phis[i]); p.y = a[i]*sin(phis[i]); p.z = 0.;
+		p.x = a[i]*cos(phi); p.y = a[i]*sin(phi); p.z = 0.;
+		double vcirc = sqrt(G*starmass/a[i] + alpha*Rc*pow(Rc/a[i], gam-1));
+		p.vx = -vcirc*sin(phi); p.vy = vcirc*cos(phi); p.vz = 0.;
 		p.m = massfac*mjup;
 		particles_add(p);
-		com = tools_get_center_of_mass(com,particles[i]);
 	}
-
-    for (int i=1;i<=Nplanets;i++){
-    	double dx = particles[i].x - com.x;
-    	double dy = particles[i].y - com.y;
-    	double dz = particles[i].z - com.z;
-    	double r = sqrt(dx*dx + dy*dy + dz*dz);
-    	double vcirc = sqrt(G*starmass/a[i] + alpha*Rc*pow(Rc/r, gam-1));
-    	particles[i].vx = -vcirc*sin(phis[i]); particles[i].vy = vcirc*cos(phis[i]); particles[i].vz = 0.;
-    	//p.ax = 0.; p.ay = 0.; p.az = 0.;
-    }
 
     tau_a = calloc(sizeof(double),N);
 	tau_e = calloc(sizeof(double),N);
-	tau_i = calloc(sizeof(double),N);
 
     for(int j=1;j<=Nplanets;++j){
         tau_a[j] = taue*k;
         tau_e[j] = taue;
-        tau_i[j] = taui;
     }
     
 	problem_additional_forces = problem_migration_forces; 	//Set function pointer to add dissipative forces.
@@ -157,20 +144,18 @@ void problem_init(int argc, char* argv[]){
     
     output_double("semimajor axis decay timescale [yrs]", taue*k);
     output_double("eccentricity decay timescale [yrs]", taue);
-    output_double("inclination decay timescale [yrs]", taui);
     output_double("K ratio between tau_a and tau_e", k);
     output_double("Planet masses [mjup]",massfac);
     output_double("Star's mass [msolar]", starmass);
     output_double("Eccentricity scale parameter", sigma_e);
-    output_double("Inclination scale parameter", sigma_i);
     output_double("Iteration number", it);
     system("cat config.log");
 }
 
 void problem_migration_forces(){
-	struct particle com = particles[0]; // calculate migration forces with respect to center of mass;
+	struct particle com = particles[0]; // calculate migration forces with respect to the star and disk (we assume disk centered on star)
 	for(int i=1;i<N;i++){
-		if (tau_e[i]!=0||tau_a[i]!=0){
+		if (tau_e[i]!=0){
 			struct particle* p = &(particles[i]);
 			const double dvx = p->vx-com.vx;
 			const double dvy = p->vy-com.vy;
@@ -181,55 +166,41 @@ void problem_migration_forces(){
 				p->ay -=  dvy/(2.*tau_a[i]);
 				p->az -=  dvz/(2.*tau_a[i]);
 			}
-			if (tau_e[i]!=0 || tau_i[i]!=0){ 	// Need h and e vectors if there is either ecc or inc damping
-				const double mu = G*(com.m + p->m);
-				const double dx = p->x-com.x;
-				const double dy = p->y-com.y;
-				const double dz = p->z-com.z;
+
+			const double mu = G*(com.m + p->m);
+			const double dx = p->x-com.x;
+			const double dy = p->y-com.y;
+			const double dz = p->z-com.z;
                 
-				const double hx = dy*dvz - dz*dvy;
-				const double hy = dz*dvx - dx*dvz;
-				const double hz = dx*dvy - dy*dvx;
-				const double h = sqrt ( hx*hx + hy*hy + hz*hz );
-				const double v = sqrt ( dvx*dvx + dvy*dvy + dvz*dvz );
-				const double r = sqrt ( dx*dx + dy*dy + dz*dz );
-				const double vr = (dx*dvx + dy*dvy + dz*dvz)/r;
-				const double ex = 1./mu*( (v*v-mu/r)*dx - r*vr*dvx );
-				const double ey = 1./mu*( (v*v-mu/r)*dy - r*vr*dvy );
-				const double ez = 1./mu*( (v*v-mu/r)*dz - r*vr*dvz );
-				const double e = sqrt( ex*ex + ey*ey + ez*ez );		// eccentricity
+			const double hx = dy*dvz - dz*dvy;
+			const double hy = dz*dvx - dx*dvz;
+			const double hz = dx*dvy - dy*dvx;
+			const double h = sqrt ( hx*hx + hy*hy + hz*hz );
+			const double v = sqrt ( dvx*dvx + dvy*dvy + dvz*dvz );
+			const double r = sqrt ( dx*dx + dy*dy + dz*dz );
+			const double vr = (dx*dvx + dy*dvy + dz*dvz)/r;
+			const double ex = 1./mu*( (v*v-mu/r)*dx - r*vr*dvx );
+			const double ey = 1./mu*( (v*v-mu/r)*dy - r*vr*dvy );
+			const double ez = 1./mu*( (v*v-mu/r)*dz - r*vr*dvz );
+			const double e = sqrt( ex*ex + ey*ey + ez*ez );		// eccentricity
 
-				if (tau_e[i]!=0){					// Eccentricity damping
-					const double a = -mu/( v*v - 2.*mu/r );			// semi major axis
-					const double prefac1 = 1./(1.-e*e) /tau_e[i]/1.5;
-					const double prefac2 = 1./(r*h) * sqrt(mu/a/(1.-e*e))/tau_e[i]/1.5; // original implementation.  Will contribute to adot at order e^2.  Needs to for overstability (Goldreich 2014)
-					p->ax += -dvx*prefac1 + (hy*dz-hz*dy)*prefac2;
-					p->ay += -dvy*prefac1 + (hz*dx-hx*dz)*prefac2;
-					p->az += -dvz*prefac1 + (hx*dy-hy*dx)*prefac2;
-				}
-				if (tau_i[i]!=0){	// Inclination damping
-					p->az += -2*dvz/tau_i[i];
-					const double prefac = (hx*hx + hy*hy)/h/h/tau_i[i];
-					p->ax += prefac*dvx;
-					p->ay += prefac*dvy;
-					p->az += prefac*dvz;
-				}
-			}
+			const double a = -mu/( v*v - 2.*mu/r );			// semi major axis
+			const double prefac1 = 1./(1.-e*e) /tau_e[i]/1.5;
+			const double prefac2 = 1./(r*h) * sqrt(mu/a/(1.-e*e))/tau_e[i]/1.5; // original implementation.  Will contribute to adot at order e^2.  Needs to for overstability (Goldreich 2014)
+			p->ax += -dvx*prefac1 + (hy*dz-hz*dy)*prefac2;
+			p->ay += -dvy*prefac1 + (hz*dx-hx*dz)*prefac2;
+			p->az += -dvz*prefac1 + (hx*dy-hy*dx)*prefac2;
+
+			double a_over_r = -alpha*pow(Rc/r,gam)/r + G*mdisk/r/r/r; 	// radial disk force after removing piece from adding the disk into the sun
+			p->ax += a_over_r*dx;									// rhat has components x/r xhat + y/r yhat + z/r zhat
+			p->ay += a_over_r*dy;
+			p->az += a_over_r*dz;
+
+			particles[0].ax -= p->m/particles[0].m*a_over_r*dx;		// add back reactions onto the star (if forces are equal, accelerations differ by -mass ratio)
+			particles[0].ay -= p->m/particles[0].m*a_over_r*dy;
+			particles[0].az -= p->m/particles[0].m*a_over_r*dz;
 		}
-
-		com = tools_get_center_of_mass(com,particles[i]);
 	}
-	struct particle* p = &(particles[1]);
-	com = tools_get_center_of_mass(particles[0],particles[1]);
-	const double dx = p->x-com.x;
-	const double dy = p->y-com.y;
-	const double dz = p->z-com.z;
-	const double r = sqrt(dx*dx+dy*dy+dz*dz);
-	double aoverr = -alpha*pow(Rc/r, gam)/r;
-	p->ax += aoverr*dx;
-	p->ay += aoverr*dy;
-	p->az += aoverr*dz;
-
 }
 void problem_inloop(){
 }
@@ -240,13 +211,21 @@ void write_r(char * filename){
 		printf("\n\nError while opening file '%s'.\n",filename);
 		return;
 	}
-	struct particle com = tools_get_center_of_mass(particles[0],particles[1]);
+	struct particle com = particles[0];
 	double dx = particles[1].x - com.x;
 	double dy = particles[1].y - com.y;
 	double dz = particles[1].z - com.z;
-	fprintf(of,"%.8f\t%.8f\t%.8f\t%.8f\n",t,sqrt(dx*dx + dy*dy + dz*dz), dx, dy);
+	fprintf(of,"%.8f\t%.12e\t%.8f\t%.8f\n",t,1.-sqrt(dx*dx + dy*dy + dz*dz)/a[1], dx, dy);
 
 	fclose(of);
+
+	/*of = fopen("com.txt","a");
+	if (of==NULL){
+			printf("\n\nError while opening file '%s'.\n",filename);
+			return;
+	}
+	fprintf(of,"%.8f\t%.8f\t%.8f\t%.8f\n",t,particles[0].m*particles[0].x + particles[1].m*particles[1].x,particles[0].m*particles[0].y + particles[1].m*particles[1].y,particles[0].m*particles[0].z + particles[1].m*particles[1].z);
+	fclose(of);*/
 }
 void append_orbits(char *filename){
 	/*FILE* of = fopen(filename,"a");

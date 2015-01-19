@@ -32,25 +32,40 @@ class cartesian_to_orbital(unittest.TestCase):
                 self.assertAlmostEqual(numpy.fabs(err),0.,places=14,msg=
                 "Kepler's Eq not satisfied: e=%.3f, M=%.3f, abs. error=%.3e"%(ecc,M,err))
 
+    def test_r_to_orb_defaults(self):
+        '''test conversion from orbital elements to cartesian and back 
+        when not all orbital elements are passed to init_planet'''
+        specified_cases = ((self.sun,1.,),
+                       (self.sun,1.,0.01)
+                       )
+        results = ((1.,0.,0.,0.,0.,0.),
+                   (1.,0.01,0.,0.,0.,0.))
+        for j in range(len(specified_cases)):
+            p = pytools.init_planet(*specified_cases[j])
+            o = pytools.p2orbit(p,self.sun)
+            self.assertAlmostEqual(results[j][0],o.a,places=12)
+            self.assertAlmostEqual(results[j][1],o.e,places=12)
+            self.assertAlmostEqual(results[j][2],o.inc,places=12)
+            self.assertAlmostEqual(results[j][3],pytools.mod2pi(o.Omega),places=12)
+            self.assertAlmostEqual(results[j][4],pytools.mod2pi(o.omega),places=12)
+            self.assertAlmostEqual(results[j][5],o.f,places=12)
+            
     def test_specified_r_to_orb(self):
         '''test conversion from orbital elements to cartesian and back with specified cases'''
-        specified_cases = ((self.G,self.sun,0.,1.,0.01,0.,0.,0.,0.,False),
-                       (self.G,self.sun,0.,1.,0.999,2.,3.,3.,0.,True),
-                       (self.G,self.sun,0.,1.759, 0.851, 0.882, 5.852, 6.139, 5.445,True),
+        specified_cases = ((self.sun,1.,0.01,0.,0.,0.,0.,0.),
+                       #(self.sun,1.,0.999,2.,3.,3.,0.,0.),
+                       #(self.sun,1.759, 0.851, 0.882, 5.852, 6.139, 5.445,0.),
                        )
         for params in specified_cases:
             #print("%.3f, %.3f, %.3f, %.3f, %.3f, %.3f"%(params[3:9]))
-            p = pytools.add_planet_3D(*params)
-            o = pytools.p2orbit(self.G,p,self.sun)
-            self.assertAlmostEqual(params[3],o.a,places=12)
-            self.assertAlmostEqual(params[4],o.e,places=12)
+            p = pytools.init_planet(*params)
+            o = pytools.p2orbit(p,self.sun)
+            self.assertAlmostEqual(params[1],o.a,places=12)
+            self.assertAlmostEqual(params[2],o.e,places=12)
             self.assertAlmostEqual(params[5],o.inc,places=12)
-            self.assertAlmostEqual(params[6],o.Omega,places=12)
-            self.assertAlmostEqual(params[7],o.omega,places=12)
-            if params[-1] == False:
-                self.assertAlmostEqual(params[8],o.f,places=12)
-            else:           # mean anomaly not defined in o, so need to construct it
-                self.assertAlmostEqual(params[8],o.l-o.Omega-o.omega,places=12)
+            self.assertAlmostEqual(params[6],pytools.mod2pi(o.Omega),places=12)
+            self.assertAlmostEqual(params[3],pytools.mod2pi(o.omega),places=12)
+            self.assertAlmostEqual(params[4],o.f,places=12)   
             
     def test_rand_r_to_orb_f(self):    
         '''test conversion from orb. elements to cart. and back with random cases w/ true anom'''
@@ -62,10 +77,9 @@ class cartesian_to_orbital(unittest.TestCase):
             _omega=random.uniform(0,2*numpy.pi)
             _f=random.uniform(0,2*numpy.pi)
             #print("%.3f, %.3f, %.3f, %.3f, %.3f, %.3f"%(_a,_e,_inc,_Omega,_omega,_f))
-            p = pytools.add_planet_3D(G=self.G, com=self.sun, mass=0., a=_a, e=_e, 
-                                      inc=_inc, Omega=_Omega, omega=_omega, anom=_f, 
-                                      MEAN=False)
-            o = pytools.p2orbit(self.G,p,self.sun)
+            p = pytools.init_planet(self.sun,a=_a, e=_e, omega=_omega, f=_f, inc=_inc, 
+                                    Omega=_Omega, mass=0.)
+            o = pytools.p2orbit(p,self.sun)
             self.assertAlmostEqual(_a,o.a,places=12)
             self.assertAlmostEqual(_e,o.e,places=12)
             self.assertAlmostEqual(_inc,o.inc,places=12)
@@ -83,10 +97,9 @@ class cartesian_to_orbital(unittest.TestCase):
             _omega=random.uniform(0,2*numpy.pi)
             _M=random.uniform(0,2*numpy.pi)
             #print("%.3f, %.3f, %.3f, %.3f, %.3f, %.3f"%(_a,_e,_inc,_Omega,_omega,_f))
-            p = pytools.add_planet_3D(G=self.G, com=self.sun, mass=0., a=_a, e=_e, 
-                                      inc=_inc, Omega=_Omega, omega=_omega, anom=_M, 
-                                      MEAN=True)
-            o = pytools.p2orbit(self.G,p,self.sun)
+            p = pytools.init_planet(self.sun,a=_a, e=_e, omega=_omega, inc=_inc, 
+                                    Omega=_Omega, mass=0., M=_M)
+            o = pytools.p2orbit(p,self.sun)
             self.assertAlmostEqual(_a,o.a,places=12)
             self.assertAlmostEqual(_e,o.e,places=12)
             self.assertAlmostEqual(_inc,o.inc,places=12)

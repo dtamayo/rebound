@@ -81,7 +81,7 @@ void problem_init(int argc, char* argv[]){
     double it = input_get_double(argc,argv,"it",0);							// iteration (running several realizations of same set of parameters)
 
     dt  		= 0.01;				// in years.  Innermost would have P ~25 yrs for 1 solar mass star.  IAS15 is adaptive anyway
-	tmax		= 1e6;
+	tmax		= 1.e5;
 	G		  	= 4*M_PI*M_PI;		// units of years, AU and solar masses.
 #ifdef OPENGL
 	display_wire	= 1;			// Show orbits.
@@ -255,20 +255,20 @@ void check_jumps(){
 }
 
 void problem_output(){
-	if (output_check(100.)){
+	/*if (output_check(100.)){
 		output_timing();
 		output_append_orbits("orbits.txt");
 #ifdef LIBPNG
         //output_png("pngs/");
 #endif
-	}
+	}*/
 	/*if (output_check(1000.)){
 		check_jumps();
 	}*/
 }
 
 void problem_finish(){
-	char* eos = "eos.txt"; // end of simulation time
+	/*char* eos = "eos.txt"; // end of simulation time
 	FILE* of = fopen(eos, "w");
 	if (of==NULL){
 	    printf("\n\nError while opening file '%s'.\n", eos);
@@ -289,5 +289,5 @@ void problem_finish(){
     	fprintf(of2,"%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\n",t,o.a,o.e,o.inc,o.Omega,o.omega,o.l,o.P,o.f);
     	com = tools_get_center_of_mass(com,particles[i]);
     }
-    output_binary("restart.bin");
+    output_binary("restart.bin");*/
 }
