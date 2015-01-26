@@ -4,7 +4,6 @@ import rebound
 import numpy as np
 import math
 import os
-import pytools
 import matplotlib.pyplot as plt
 import pickle
 from interruptible_pool import InterruptiblePool
@@ -40,7 +39,7 @@ star = rebound.Particle(m=starmass,x=0.,y=0.,z=0.,vx=0.,vy=0.,vz=0.)
 rebound.particle_add(star)                  # Star at origin (zeros by default for pos & vel)
 
 for j in range(1,N):
-    rebound.particle_add(pytools.kepler_particle(m=mass,primary=star,a=a[j],anom=0.,e=e,omega=0.,
+    rebound.particle_add(rebound.kepler_particle(m=mass,primary=star,a=a[j],anom=0.,e=e,omega=0.,
                                              inc=inc,Omega=0.))
 
 rebound.init_damping_forces()
@@ -59,17 +58,15 @@ N_output = 0
 with open('taue_{:.1e}.txt'.format(taue), mode='w', encoding='utf-8') as f:
     pass # overwrite previous file
 
-a = [[],[],[],[],[],[]]
 while rebound.get_t()<tmax:
     _t = rebound.get_t()
     if _t - last_t > outputdelta:
         with open('taue_{:.1e}.txt'.format(taue), mode='a', encoding='utf-8') as f:
             com = particles[0]
             for i in range(1,rebound.get_N()):
-                o = pytools.p2orbit(particles[i],com)#particles[0])
+                o = rebound.p2orbit(particles[i],com)#particles[0])
                 f.write('{:.16e}\t{:.16e}\t{:.16e}\t{:.16e}\t{:.16e}\t{:.16e}\t{:.16e}\t{:.16e}\t{:.16e}\n'.format(_t,o.a,o.e,o.inc,o.Omega,o.omega,o.l,o.P,o.f))
                 pytools.get_center_of_mass(com, particles[i])   
-                a[i].append(o.a)
         N_output += 1
         last_t = _t
     

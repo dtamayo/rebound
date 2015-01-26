@@ -5,39 +5,6 @@ import sys; sys.path.append('../')
 import rebound
 # Import other modules
 import math
-import numpy
-import scipy.signal as signal
-import matplotlib.pyplot as plt
-
-def plot_freq_spectrum(t,vals,wmin,wmax,nfreq=1000,log=True):
-    if log == True:
-        lnminw = numpy.log(wmin)
-        lnmaxw = numpy.log(wmax)
-        logw = numpy.linspace(lnminw,lnmaxw,nfreq)
-        w = numpy.asarray([numpy.e**i for i in logw])
-    else:
-        w = numpy.linspace(wmin,wmax,nfreq)
-    
-    pgram = signal.lombscargle(t,vals,w)
-    
-    fig,ax = plt.subplots()
-    if log == True:
-        ax.semilogx(w,numpy.sqrt(4*pgram/vals.shape[0]))
-    else:
-        ax.plot(w,numpy.sqrt(4*pgram/vals.shape[0]))
-    plt.show()
-
-def find_freq_peak(t,vals,wmin,wmax,nfreq=1000,showplot=False):   
-    w = numpy.linspace(wmin,wmax,nfreq)
-    pgram = signal.lombscargle(t,vals,w)
-    
-    if showplot==True:
-        fig,ax = plt.subplots()
-        ax.plot(w,numpy.sqrt(4*pgram/vals.shape[0]))
-        plt.show()
-        
-    maxindex = numpy.argmax(pgram)
-    return w[maxindex] 
 
 def get_center_of_mass(p1, p2):
     com = rebound.Particle()
@@ -70,7 +37,7 @@ def mod2pi(f):
     return f
 
 def get_E(e,M):
-    E = M if e<0.8 else numpy.pi   
+    E = M if e<0.8 else math.pi   
         
     F = E - e*math.sin(M) - M
     for i in range(100):
@@ -284,121 +251,3 @@ def p2orbit(p, primary,verbose=False):
         o.l = ea -o.e*math.sin(ea) + o.omega+ o.Omega  # mean longitude
     
     return o
-
-
-def resarg(j1,j2,j3,j4, ml, Om, w, p1, p2): # return a list of values of resonant argue vs time, with phi given by 8.18 in M&D
-    # jn are the coefficients of phi, p1 and p2 are the IDs of the planets you want
-    if j1*j2 > 0: 
-        print("j1 and j2 must have opposite sign to be resonant.  See M&D 8.18")
-        return
-    if j1 + j2 + j3 + j4 != 0:
-        print("combination of j's does not obey the d'Alembert relation sum = 0")
-        return
-    if p2 < p1:
-        print("must pass planet IDs with p2 > p1")
-        return
-    
-    return [(j1*ml[p2-1][q] + j2*ml[p1-1][q] + j3*(Om[p2-1][q] + w[p2-1][q]) + j4*(Om[p1-1][q] + w[p1-1][q]))%360. for q in range(len(ml[p2-1]))]
-
-def findres(p1,p2,t,ml,Om,w,numavg,meanratio):
-    highestj = 6 # highest j+1:j resonance to look for
-    percentthresh = 0.06 #percent to go above and below nominal res period ratio to call it in res
-    stdevthresh = 60. # half-width of phi to consider being in resonance
-
-    
-    flag=0
-    reso=999
-    resi=999
-    ressec=999
-
-    nrows=2
-    ncols=2
-
-    fig, axs  = plt.subplots(nrows,ncols, figsize=(12,12)) #need figsize here to set bottom spacings
-
-    left  = 0.1  # the left side of the subplots of the figure
-    right = 0.9    # the right side of the subplots of the figure
-    bottom = 0.1   # the bottom of the subplots of the figure
-    top = 0.9      # the top of the subplots of the figure
-    wspace = 0.1   # the amount of width reserved for blank space between subplots
-    hspace = 0.2   # the amount of height reserved for white space between subplots
-
-    plt.subplots_adjust(left=left, bottom=bottom, right=right, top=top, wspace=wspace, hspace=hspace)
-
-    axs[0,0].set_title("Period Ratios for particles %d and %d"%(p1,p2), fontsize=12)
-    axs[0,0].set_ylim([1.,2.])
-    #axs[0,0].plot(t[0][::],ratio, 'b,')
-            
-    for j in numpy.linspace(1,highestj,highestj):
-        if meanratio > (j+1)/j*(1.-percentthresh) and meanratio < (j+1)/j*(1.+percentthresh) and flag==0:
-            phi1 = resarg(j+1,j*(-1),0,-1,ml,Om,w,p1,p2) #pericenter of inner
-            axs[1,0].set_title("%0.0f:%0.0f res. (inner pericenter)"%(j+1,j))
-            axs[1,0].set_ylim([0.,360.])
-            axs[1,0].plot(t[0][::], phi1, 'b,')
-        
-            finalphis1 = phi1[-numavg:]
-            if numpy.std(finalphis1) < stdevthresh:
-                flag=1
-                resi=numpy.mean(finalphis1)
-            else: #if librating around 0, can get wrap-around 360 that would give spuriously large stdev, so center things at 0 and recalc
-                for q in range(len(finalphis1)): 
-                    if finalphis1[q] > 180.:
-                        finalphis1[q] -= 360.
-                if numpy.std(finalphis1) < stdevthresh:
-                    flag=1
-                    resi=numpy.mean(finalphis1)
-                
-            phi2 = resarg(j+1,j*(-1),-1,0,ml,Om,w,p1,p2)
-            axs[1,1].set_title("%0.3f res. (outer pericenter)"%(meanratio))
-            axs[1,1].set_ylim([0.,360.])
-            axs[1,1].plot(t[0][::], phi2, 'b,')
-        
-            finalphis2 = phi2[-numavg:]
-
-            if numpy.std(finalphis2) < stdevthresh:
-                flag=1
-                reso=numpy.mean(finalphis2)
-            else:
-                for q in range(len(finalphis2)):
-                    if finalphis2[q] > 180.:
-                        finalphis2[q] -= 360.
-                if numpy.std(finalphis2) < stdevthresh:
-                    flag=1
-                    reso=numpy.mean(finalphis2)
-            
-            if flag==1:
-                break
-
-    phi0 = resarg(0,0,1,-1,ml,Om,w,p1,p2) #pericenter of inner
-        
-    axs[0,1].set_title(r"$\varpi_2 - \varpi_1$")
-    axs[0,1].set_ylim([0.,360.])
-    axs[0,1].plot(t[0][::], phi0, 'b,')
-
-    finalphis0 = phi0[-numavg:]
-    if numpy.std(finalphis0) < stdevthresh:
-        flag=1
-        ressec=numpy.mean(finalphis0)
-    else: #if librating around 0, can get wrap-around 360 that would give spuriously large stdev, so center things at 0 and recalc
-        for q in range(len(finalphis0)): 
-            if finalphis0[q] > 180.:
-                finalphis0[q] -= 360.
-        if numpy.std(finalphis0) < stdevthresh:
-            flag=1
-            ressec=numpy.mean(finalphis0)
-
-    print(ressec,resi,reso,"%s:%s"%(j+1,j))
-    return
-    
-if __name__ == '__main__':
-    sun = rebound.Particle( m=1.,x=0.,y=0.,z=0.,vx=0.,vy=0.,vz=0.)
-    G = 1.
-    kwargs = {'m':0.,'primary':sun,'a':1.,'anom':3.,'e':.999,'omega':3.,'inc':2.,'Omega':3.}
-    args = (sun,1.,.999,3.,3.,2.,3.)
-    
-    p = kepler_particle(**kwargs)
-    p2 = init_planet(*args)
-    print(p.x, p.y, p.z, p.vx, p.vy, p.vz)
-    print(p2.x, p2.y, p2.z, p2.vx, p2.vy, p2.vz)
-    o = test_p2orbit(p,sun)
-    #print(o.a)
