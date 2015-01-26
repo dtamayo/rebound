@@ -257,26 +257,27 @@ def p2orbit(p, primary,verbose=False):
         if (n1>=0.):
             o.Omega = math.acos(n0/n)
         else:
-            o.Omega=2.*math.pi-math.acos(n0/n)  # Omega=longitude of asc node
+            o.Omega=2.*math.pi-math.acos(n0/n)# Omega=longitude of asc node
                                                 # taken in xy plane from x axis
     
-    if (o.e<=MIN_REL_ERROR):                    # circular orbit
+    if (o.e<=MIN_REL_ERROR):                           # circular orbit
         o.f=0.                                  # f has no meaning
         o.l=0.
     else:
-        cosf = er/(o.e*o.r)
-        cosea = (1.-o.r/o.a)/o.e
-        
-        if -1.<=cosf<=1.:                       # failsafe
-            o.f = math.acos(cosf)
+        o.f = er/(o.e*o.r)
+        ea = (1.-o.r/o.a)/o.e
+        if -1.<=o.f<=1. and -1.<=ea<=1.:
+            o.f = math.acos(o.f)             # true anom=0 if obj at perictr
+            ea  = math.acos(ea)              # eccentric anomaly
         else:
-            o.f = math.pi/2.*(1.-cosf)
-        
-        if -1.<=cosea<=1.:  
-            ea  = math.acos(cosea)  
-        else:
-            ea = math.pi/2.*(1.-cosea)     
-        
+            if (o.f>1. or o.f<-1.):                 # failsafe
+                o.f = math.pi/2. - math.pi/2.*o.f
+            else:
+                o.f = math.acos(o.f)
+            if (ea>1. or ea<-1.):
+                ea  = math.pi/2. - math.pi/2.*ea
+            else:
+                ea = math.acos(ea)
         if (vr<0.):
             o.f=2.*math.pi-o.f    
             ea =2.*math.pi-ea

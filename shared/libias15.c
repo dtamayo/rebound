@@ -62,6 +62,9 @@ extern double* e[7];
 extern double* br[7];
 extern double* er[7];
 
+// pointers for damping timescales
+double *tau_a, *tau_e, *tau_i;
+
 // Function pointer to additional forces
 void (*problem_additional_forces) () = NULL;
 
@@ -139,6 +142,9 @@ void reset(){
 	struct timeval tim;
 	gettimeofday(&tim, NULL);
 	srand ( tim.tv_usec + getpid());
+	free(tau_a);
+	free(tau_e);
+	free(tau_i);
 }
 
 // Integrate until t=_tmax
@@ -191,11 +197,7 @@ struct ghostbox boundaries_get_ghostbox(int i, int j, int k){
 	return gb;
 }
 
-
-double *tau_a, *tau_e, *tau_i;
-
 void additional_forces(){
-	printf("Hi\n");
 	struct particle com = particles[0]; // calculate migration forces with respect to center of mass;
 	for(int i=1;i<N;i++){
 		if (tau_e[i] != 0. || tau_a[i] != 0.){

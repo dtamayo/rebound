@@ -2,11 +2,6 @@ from ctypes import *
 # Try to load libias15 from the obvioud places it could be in.
 
 try:
-    xrange          # If there's a name error we're using python 3.x
-except NameError:
-    xrange = range  # xrange = range in python 3.x
-
-try:
     libias15 = CDLL('../../shared/libias15.so', RTLD_GLOBAL)
 except:
     try:
