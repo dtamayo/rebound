@@ -4,9 +4,7 @@ import rebound
 import numpy as np
 import math
 import os
-import matplotlib.pyplot as plt
 import pickle
-from interruptible_pool import InterruptiblePool
 import time
 start_time = time.time()
         
