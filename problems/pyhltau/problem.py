@@ -57,20 +57,22 @@ def jiggle(particles,delta):
 rebound.set_G(4.*math.pi**2)  
 
 starmass = 0.55     # in solar masses
-N = 4              # including central star    
-a = [0.,42.,53.,66.]    # AU
-mass = 1.e-4       # solar masses
+N = 4              # including central star   
+a0 = 42. 
+afac = 1.24
+a = [0.,a0,a0*afac,a0*afac**2]    # AU
+mass = 1.e-5       # solar masses
 e = 1.e-8
 inc = 1.e-8
-taue=1.e4
-taua=-taue*100
+taue=1.e5
+taua=taue*100
 taues = (0.,taue,taue,taue)
 tauis = (0.,taue,taue,taue)
-tauas = (0.,taua,0.,0.)
+tauas = (0.,0.,0.,taua)
 
-outputdelta=10000.
+outputdelta=10.
 
-tmax = 2.e6
+tmax = 3.e6
 
 # Add particles
 star = rebound.Particle(m=starmass,x=0.,y=0.,z=0.,vx=0.,vy=0.,vz=0.)
@@ -221,7 +223,9 @@ fig,ax = plt.subplots(4)
 ax[0].plot(t[0][start:end],Pratio1[start:end], ',')
 ax[0].plot(t[0][start:end],Pratio2[start:end], ',')
 ax[1].plot(t[0][start:end],phi[start:end], ',')
-ax[2].plot(q[start:end],p[start:end],',')
+ax[2].plot(t[0][start:end],a[0][start:end],',')
+ax[2].plot(t[0][start:end],a[1][start:end],',')
+ax[2].plot(t[0][start:end],a[2][start:end],',')
 ax[3].plot(t[0][start:end], e[0][start:end], ',')
 ax[3].plot(t[0][start:end], e[1][start:end], ',')
 
