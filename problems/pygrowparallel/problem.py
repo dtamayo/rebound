@@ -31,7 +31,7 @@ def make_restarts(particles,mthresh,tauas,taues,tauis,n_restarts,delta):
             o.f += np.random.uniform(-delta,delta)
             p = pytools.kepler_particle(particles[q].m,com,o.a,o.f,o.e,o.omega,o.inc,o.Omega)
             ps.append(p)
-        with open('starters/m_{0:.2e}_taue_{1:.2e}_{2:2d}.bin'.format(mthresh,taues[1],i+1), 'wb') as f:
+        with open('starters/m_{0:.2e}_taue_{1:.2e}_{2:1d}.pickle'.format(mthresh,taues[1],i+1), 'w') as f:
             pickle.dump((ps,tauas,taues,tauis),f)
 
 def main(argv):
