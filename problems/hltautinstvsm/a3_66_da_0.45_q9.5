@@ -1,0 +1,9 @@
+#!/bin/bash
+#PBS -l nodes=1:ppn=1
+#PBS -q workq
+#PBS -r n
+#PBS -l walltime=47:55:00
+#PBS -N a3_66_da_0.45_m9.5
+# EVERYTHING ABOVE THIS COMMENT IS NECESSARY, SHOULD ONLY CHANGE nodes,ppn,walltime and my_job_name VALUES
+cd $PBS_O_WORKDIR
+./scripta3_66_da_0.45_q9.5

@@ -32,7 +32,7 @@ def setup_planet(com, mass, period, M, omega, eccentricity):
     if eccentricity>0.8:
         E = np.pi
     F = E - eccentricity*math.sin(M) - M
-    for i in xrange(100):
+    for i in range(100):
         E = E - F/(1.0-eccentricity*math.cos(E))
         F = E - eccentricity*math.sin(E) - M
         if math.fabs(F)<1e-16:
@@ -75,7 +75,7 @@ def megno(par):
 
 
 ### Setup grid and run many simulations in parallel
-N = 12                      # Grid size, increase this number to see more detail
+N = 2                     # Grid size, increase this number to see more detail
 P = np.linspace(23.,31.,N)  # range of saturn period in years
 e = np.linspace(0.,0.5,N)   # range of saturn eccentricity
 v = []
@@ -86,6 +86,7 @@ for _e in e:
 pool = InterruptiblePool(24)    # Number of threads
 res = pool.map(megno,v)         # Run simulations in parallel
 
+print(res)
 ### Create plot and save as pdf 
 import matplotlib; matplotlib.use("pdf")
 import matplotlib.pyplot as pl

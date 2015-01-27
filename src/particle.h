@@ -46,7 +46,6 @@ struct particle {
 	double ay;	/**< y-acceleration of the particle. */
 	double az;	/**< z-acceleration of the particle. */
 	double m;	/**< Mass of the particle. */
-    int ID;     /**< ID to track which particle goes where*/
 #ifndef COLLISIONS_NONE
 	double r; 	/**< Radius of the particle. */
 	double lastcollision;	/**< Last time the particle had a physical collision. */
@@ -61,6 +60,13 @@ struct particle {
  * This contains all particles on this node.
  */
 extern struct particle* particles;
+
+/**
+ * Keeps track of which particle index corresponds to which ID
+ * Need this since particles array gets rearranged when one leaves box
+ */
+
+extern int* particle_IDs;
 
 /** 
  * Adds a particle to the simulation. 
@@ -91,5 +97,10 @@ void particles_add_local(struct particle pt);
  * @param pt Particle to be checked.
  */
 int particles_get_rootbox_for_particle(struct particle pt);
+
+/**
+ * Initializes the particle_IDs array to keep track of which particle is which
+ */
+void particles_assign_IDs();
 
 #endif // _PARTICLE_H

@@ -1,0 +1,9 @@
+semimajor axis decay timescale [yrs] =  10000000.0
+eccentricity decay timescale [yrs]  =    100000.0
+inclination decay timescale [yrs]   =    100000.0
+K ratio between tau_a and tau_e     =       100.0
+Planet masses [mjup]                =         0.2990000000
+Star's mass [msolar]                =         0.5500000000
+Eccentricity scale parameter        =         0.0500000000
+Inclination scale parameter         =         0.0500000000
+Iteration number                    =         0.0

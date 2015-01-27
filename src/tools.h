@@ -114,6 +114,12 @@ struct particle tools_init_orbit3d(double M, double m, double a, double e, doubl
 struct orbit tools_p2orbit(struct particle p, struct particle star);
 
 /**
+ * Returns the energy associated with a particular particle index, i.e., kinetic energy plus interaction energy with all the other particles
+ * @param i index of the particle for which the energy is calculated
+ */
+double tools_particle_E(int i);
+
+/**
  * This function returns p/a, a conserved quantity in the general 3-body problem.  This value determines whether the bodies can undergo close encounters or not (see Gladman 1993 Eq. 12)
  * @param G Gravitational constant.
  * @param p1 first particle
@@ -121,6 +127,40 @@ struct orbit tools_p2orbit(struct particle p, struct particle star);
  * @param p3 third particle
  */
 double tools_p_over_a(double G, struct particle p1, struct particle p2, struct particle p3);
+
+/**
+ * This functions populates L with the center of mass's angular momentum
+ * @param L pointer to a vector of 3 doubles (to be populated by function)
+ */
+void tools_com_L_vec(double* L);
+
+/**
+ * This function returns the center of mass's kinetic energy
+ */
+double tools_com_ke();
+
+/**
+ * This function returns the system's total energy
+ */
+double tools_get_total_E();
+
+/**
+ * This function populates the L pointer with the particle with index i's angular momentum components
+ * @param i index of the particle for which to calculate the angular momentum
+ * @param L Pointer to an array of 3 doubles (to be populated by function)
+ */
+void tools_particle_L_vec(int i, double* L);
+
+/**
+ * This function populates the L pointer with the system's angular momentum components
+ * @param L Pointer to an array of 3 doubles (to be populated by function)
+ */
+void tools_get_total_L_vec(double* L);
+
+/**
+ * This function returns the system's total angular momentum
+ */
+double tools_get_total_L();
 
 /**
  * Move to center of momentum and center of mass frame.

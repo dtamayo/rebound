@@ -50,7 +50,7 @@ void problem_init(int argc, char* argv[]){
 #ifdef OPENGL
 	display_wire	= 1; 			// show istantaneous orbits.
 #endif // OPENGL
-	init_box();
+	init_boxwidth(15);
 
 	// Initial conditions
 	

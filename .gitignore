@@ -1,6 +1,7 @@
 *.o
 *.bin
 *~
+*.pyc
 nbody
 gravity.c
 boundaries.c
