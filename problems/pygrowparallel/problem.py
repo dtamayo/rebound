@@ -47,7 +47,7 @@ def main(argv):
     
     args = []
     for taue in range(4,8):
-        args.append((mthresh,10**taue))
+        args.append((mass,10**taue))
     
     pool = InterruptiblePool()
     pool.map(trygrow,args)
