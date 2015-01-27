@@ -66,7 +66,7 @@ def grow(mthresh, taue):
     rebound.reset()
     rebound.set_G(4*math.pi**2)
 
-    n_restarts = 3
+    n_restarts = 24
     delta = 2e-2
 
     outputdelta=20.
