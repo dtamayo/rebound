@@ -6,11 +6,9 @@ import math
 import os
 import pytools
 import random
-import matplotlib.pyplot as plt
 import pickle
 import getopt
 import time
-import os
 
 start_time = time.time()
 
