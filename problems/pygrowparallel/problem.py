@@ -95,7 +95,7 @@ def grow(mthresh, taue):
 
     last_t = -1e6
     tprev = -1 # for keeping track of timestep getting too small separate from output
-    
+    dtthresh = 1. # if timestep gets smaller than this, break (close encounter)
     while rebound.get_t()<tmax:
         _t = rebound.get_t()
         if _t - last_t > outputdelta:
@@ -108,7 +108,7 @@ def grow(mthresh, taue):
             particles[i].m += deltaM
         if particles[3].m > mthresh:
             break
-        if _t > 1e3 and _t - tprev < 0.1: # timestep got too small (close encounter)
+        if _t > 1e3 and _t - tprev < dtthresh: # timestep got too small (close encounter)
             print("Timestep got too small")
             return False
         tprev = _t
