@@ -69,6 +69,7 @@ def main(argv):
     for taue in range(4,8):
         args.append((mass,10**taue))
     
+    print(args)
     pool = InterruptiblePool()
     pool.map(trygrow,args)
 
