@@ -34,7 +34,7 @@ def make_restarts(particles,mthresh,tauas,taues,tauis,n_restarts,delta):
         with open('starters/m_{0:.2e}_taue_{1:.2e}_{2:1d}.pickle'.format(mthresh,taues[1],i+1), 'w') as f:
             pickle.dump((ps,tauas,taues,tauis),f)
 
-def check_jumps(a, particles):
+def check_jumps(a, particles,dr_thresh):
     com = particles[0]
     for i in range(1,rebound.get_N()):
         o = pytools.p2orbit(particles[i],com)
@@ -115,7 +115,7 @@ def grow(mthresh, taue):
 
     last_t = -1e6
     a = [0.,0.,0.,0.]
-    
+    dr_thresh = 5.
     while rebound.get_t()<tmax:
         _t = rebound.get_t()
         if _t - last_t > outputdelta:
@@ -130,7 +130,7 @@ def grow(mthresh, taue):
             break
         tprev = _t
         rebound.step()
-        breakflag = check_jumps(a,particles)
+        breakflag = check_jumps(a,particles,dr_thresh)
         if breakflag is True:
             return False
 
