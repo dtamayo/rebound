@@ -69,7 +69,6 @@ def main(argv):
     for taue in range(4,8):
         args.append((mass,10**taue))
     
-    print(args)
     pool = InterruptiblePool()
     pool.map(trygrow,args)
 
@@ -115,7 +114,7 @@ def grow(mthresh, taue):
     N = rebound.get_N()
 
     last_t = -1e6
-    a = [0.,0.,0.,0.]
+    a = [0.,0.,0.,0.,0.,0.]
     dr_thresh = 5.
     while rebound.get_t()<tmax:
         _t = rebound.get_t()
