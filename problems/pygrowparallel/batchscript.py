@@ -33,7 +33,7 @@ for j in range(0,Nmass):
         of.write("#PBS -N pygrowparallel\n")
         of.write("# EVERYTHING ABOVE THIS COMMENT IS NECESSARY, SHOULD ONLY CHANGE nodes,ppn,walltime and my_job_name VALUES\n")
         of.write("cd $PBS_O_WORKDIR\n")
-        of.write("qsub python problem.py --mass={0:.3e}\n".format(mass*mearth))
+        of.write("python problem.py --mass={0:.3e}\n".format(mass*mearth))
     
         call("chmod u=rwx m_{0:.1f}".format(mass), shell=True)
 
@@ -42,6 +42,6 @@ with open("sunnyscript", "w") as of:
     for j in range(0,Nmass):
         logmass = np.log(massmin) + j*deltamass
         mass = pow(np.e,logmass)
-        of.write("./m_{0:.1f}\n".format(mass))
+        of.write("qsub m_{0:.1f}\n".format(mass))
         
     call("chmod u=rwx sunnyscript", shell=True)
