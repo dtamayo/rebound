@@ -57,7 +57,7 @@ def trygrow(args):
     
     its = 3
     for i in range(its):
-        success = grow(mthresh,10**taue)
+        success = grow(mthresh,taue)
         if success is True:
             break
         
