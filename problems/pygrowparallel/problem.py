@@ -52,10 +52,12 @@ def main(argv):
     pool = InterruptiblePool()
     pool.map(trygrow,args)
 
-def trygrow(mthresh,taue):  
+def trygrow(args):  
+    mthresh,taue = args
+    
     its = 3
     for i in range(its):
-        success = grow(mass,10**taue)
+        success = grow(mthresh,10**taue)
         if success is True:
             break
         
