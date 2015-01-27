@@ -9,6 +9,7 @@ import random
 import pickle
 import getopt
 import time
+from interruptible_pool import InterruptiblePool
 
 start_time = time.time()
 
@@ -42,16 +43,22 @@ def main(argv):
         
     for opt, arg in opts:
         if opt in ("-m", "--mass"):
-            mass = float(arg)
-
-    its = 3
+            mass = float(arg)   
     
+    args = []
     for taue in range(4,8):
-        for i in range(its):
-            success = grow(mass,10**taue)
-            if success is True:
-                break
-  
+        args.append((mthresh,10**taue))
+    
+    pool = InterruptiblePool()
+    pool.map(trygrow,args)
+
+def trygrow(mthresh,taue):  
+    its = 3
+    for i in range(its):
+        success = grow(mass,10**taue)
+        if success is True:
+            break
+        
 def grow(mthresh, taue):
     print(taue, mthresh)
     rebound.reset()
