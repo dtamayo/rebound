@@ -114,6 +114,8 @@ def grow(mthresh, taue):
     N = rebound.get_N()
 
     last_t = -1e6
+    a = [0.,0.,0.,0.]
+    
     while rebound.get_t()<tmax:
         _t = rebound.get_t()
         if _t - last_t > outputdelta:
