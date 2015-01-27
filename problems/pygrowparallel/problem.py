@@ -34,26 +34,6 @@ def make_restarts(particles,mthresh,tauas,taues,tauis,n_restarts,delta):
         with open('starters/m_{0:.2e}_taue_{1:.2e}_{2:1d}.pickle'.format(mthresh,taues[1],i+1), 'w') as f:
             pickle.dump((ps,tauas,taues,tauis),f)
 
-def check_jumps(a, particles,dr_thresh):
-    com = particles[0]
-    for i in range(1,rebound.get_N()):
-        o = pytools.p2orbit(particles[i],com)
-
-        if o.a*o.e > dr_thresh:
-            print("Planet {0} had a*e > {1} AU\n".format(i,dr_thresh))
-            return True
-
-        if a[i] == 0.:
-            a[i] = o.a
-            
-        if math.fabs(o.a - a[i]) > dr_thresh:
-            print("Planet {0} had semimajor axis jump by more than {1} AU".format(i, dr_thresh))
-            return True
-        
-        a[i] = o.a
-        com = pytools.get_center_of_mass(com, particles[i]) 
-    return
-
 def main(argv):
     try:
         opts, args = getopt.getopt(argv, "m:", ["mass="])
@@ -114,8 +94,8 @@ def grow(mthresh, taue):
     N = rebound.get_N()
 
     last_t = -1e6
-    a = [0.,0.,0.,0.,0.,0.]
-    dr_thresh = 5.
+    tprev = -1 # for keeping track of timestep getting too small separate from output
+    
     while rebound.get_t()<tmax:
         _t = rebound.get_t()
         if _t - last_t > outputdelta:
@@ -128,11 +108,11 @@ def grow(mthresh, taue):
             particles[i].m += deltaM
         if particles[3].m > mthresh:
             break
+        if _t > 1e3 and _t - tprev < 0.1: # timestep got too small (close encounter)
+            print("Timestep got too small")
+            return False
         tprev = _t
         rebound.step()
-        breakflag = check_jumps(a,particles,dr_thresh)
-        if breakflag is True:
-            return False
 
     if rebound.get_N() < 6:
         print("Number of particles < 6")
