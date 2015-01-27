@@ -19,7 +19,7 @@ a = [0.,13.6,33.3,a0,a0*afac,a0*afac**2]    # AU
 
 e = 1.e-8
 inc = 1.e-8
-taue=1.e4
+taue=1.e7
 taua=taue*100
 taues = (0.,taue,taue,taue,taue,taue)
 tauis = (0.,taue,taue,taue,taue,taue)
@@ -54,24 +54,24 @@ steps = 0
 last_t = -1e6
 N_output = 0
 
-with open('taue_{:.1e}.txt'.format(taue), mode='w', encoding='utf-8') as f:
+with open('taue_{0:.1e}.txt'.format(taue), mode='w') as f:
     pass # overwrite previous file
 
 while rebound.get_t()<tmax:
     _t = rebound.get_t()
     if _t - last_t > outputdelta:
-        with open('taue_{:.1e}.txt'.format(taue), mode='a', encoding='utf-8') as f:
+        with open('taue_{0:.1e}.txt'.format(taue), mode='a') as f:
             com = particles[0]
             for i in range(1,rebound.get_N()):
                 o = pytools.p2orbit(particles[i],com)#particles[0])
-                f.write('{:.16e}\t{:.16e}\t{:.16e}\t{:.16e}\t{:.16e}\t{:.16e}\t{:.16e}\t{:.16e}\t{:.16e}\n'.format(_t,o.a,o.e,o.inc,o.Omega,o.omega,o.l,o.P,o.f))
+                f.write('{0:.16e}\t{1:.16e}\t{2:.16e}\t{3:.16e}\t{4:.16e}\t{5:.16e}\t{6:.16e}\t{7:.16e}\t{8:.16e}\n'.format(_t,o.a,o.e,o.inc,o.Omega,o.omega,o.l,o.P,o.f))
                 pytools.get_center_of_mass(com, particles[i])   
         N_output += 1
         last_t = _t
     
     rebound.step()
 
-with open('taue_{:.1e}_starter.bin'.format(taue), 'wb') as f:
+with open('taue_{0:.1e}_starter.bin'.format(taue), 'wb') as f:
     pickle.dump(([particles[q] for q in range(N)],tauas,taues,tauis),f)
         
 print("Took {0} seconds".format(time.time() - start_time))

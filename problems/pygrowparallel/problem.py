@@ -12,14 +12,13 @@ import time
 
 start_time = time.time()
 
-def make_restarts():
+def make_restarts(particles,mthresh,tauas,taues,tauis,n_restarts,delta):
     #make the first one the original simulation
     ps = []
+    N = rebound.get_N()
     for q in range(N):
         ps.append(particles[q])
-        if q == 1:
-            print(particles[q].x)
-    with open('starters/m_{0:.2e}_taue_{1:.2e}_{2:2d}.bin'.format(mthresh,taues[1],0), 'wb') as f:
+    with open('starters/m_{0:.2e}_taue_{1:.2e}_{2:1d}.pickle'.format(mthresh,taues[1],0), 'w') as f:
         pickle.dump((ps,tauas,taues,tauis),f)
     #now perturb n_restarts-1 times
     for i in range(n_restarts-1):
@@ -31,8 +30,6 @@ def make_restarts():
             o.f += np.random.uniform(-delta,delta)
             p = pytools.kepler_particle(particles[q].m,com,o.a,o.f,o.e,o.omega,o.inc,o.Omega)
             ps.append(p)
-            if q == 1:
-                print(p.x)
         with open('starters/m_{0:.2e}_taue_{1:.2e}_{2:2d}.bin'.format(mthresh,taues[1],i+1), 'wb') as f:
             pickle.dump((ps,tauas,taues,tauis),f)
 
@@ -46,8 +43,6 @@ def main(argv):
     for opt, arg in opts:
         if opt in ("-m", "--mass"):
             mass = float(arg)
-    
-    print(mass)
 
     its = 3
     
@@ -58,6 +53,10 @@ def main(argv):
                 break
   
 def grow(mthresh, taue):
+    print(taue, mthresh)
+    rebound.reset()
+    rebound.set_G(4*math.pi**2)
+
     n_restarts = 3
     delta = 2e-2
 
@@ -73,14 +72,13 @@ def grow(mthresh, taue):
         tauas = data[1]
         taues = data[2]
         tauis = data[3]
-
     for p in prevparticles: # data[0] is a list of the particles
         rebound.particle_add(p)
 
-        rebound.init_damping_forces()
-        rebound.add_migration(tauas)
-        rebound.add_e_damping(taues)
-        rebound.add_i_damping(tauis)
+    rebound.init_damping_forces()
+    rebound.add_migration(tauas)
+    rebound.add_e_damping(taues)
+    rebound.add_i_damping(tauis)
 
     particles = rebound.particles_get()
 
@@ -92,30 +90,33 @@ def grow(mthresh, taue):
     while rebound.get_t()<tmax:
         _t = rebound.get_t()
         if _t - last_t > outputdelta:
-            o = pytools.p2orbit(particles[i],particles[0])
-            tlib = 0.078*(particles[i].m/0.55)**(-2./3.)*o.P
-            deltaM = particles[i].m * outputdelta / 10. / tlib  
+            o = pytools.p2orbit(particles[N-1],particles[0])
+            tlib = 0.078*(particles[N-1].m/0.55)**(-2./3.)*o.P
+            deltaM = particles[N-1].m * outputdelta / 10. / tlib  
         last_t = _t
         
         for i in range(1,N):
             particles[i].m += deltaM
         if particles[3].m > mthresh:
             break
-        if _t - tprev < 0.1: # timestep got too small (close encounter)
+        if _t > 1e3 and _t - tprev < 0.1: # timestep got too small (close encounter)
+            print("Timestep got too small")
             return False
         tprev = _t
         rebound.step()
 
     if rebound.get_N() < 6:
+        print("Number of particles < 6")
         return False
     if particles[3].m < mthresh:
+        print("masses didn't reach mthresh")
         return False
         
-    make_restarts()
-    with open('final_a_taue_{0:.1e}.txt'.format(taue), mode='a', encoding='utf-8') as f:
+    make_restarts(particles,mthresh,tauas,taues,tauis,n_restarts,delta)
+    with open('final_a_taue_{0:.1e}.txt'.format(taue), mode='a') as f:
         f.write('{0:.2e}'.format(mthresh))
         for i in range(1,rebound.get_N()):
-            o = pytools.p2orbit(particles[i].m,particles[0])
+            o = pytools.p2orbit(particles[i],particles[0])
             f.write('\t{0:.2f}'.format(o.a))
         f.write('\n')
     return True
