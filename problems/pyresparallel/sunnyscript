@@ -1,0 +1,2 @@
+#!/bin/bash
+qsub m_5.0_t_1.0e+04qsub m_5.0_t_1.0e+05qsub m_5.0_t_1.0e+06qsub m_5.0_t_1.0e+07qsub m_9.0_t_1.0e+04qsub m_9.0_t_1.0e+05qsub m_9.0_t_1.0e+06qsub m_9.0_t_1.0e+07qsub m_16.2_t_1.0e+04qsub m_16.2_t_1.0e+05qsub m_16.2_t_1.0e+06qsub m_16.2_t_1.0e+07qsub m_29.2_t_1.0e+04qsub m_29.2_t_1.0e+05qsub m_29.2_t_1.0e+06qsub m_29.2_t_1.0e+07qsub m_52.7_t_1.0e+04qsub m_52.7_t_1.0e+05qsub m_52.7_t_1.0e+06qsub m_52.7_t_1.0e+07qsub m_94.9_t_1.0e+04qsub m_94.9_t_1.0e+05qsub m_94.9_t_1.0e+06qsub m_94.9_t_1.0e+07

@@ -10,10 +10,11 @@ import matplotlib.pyplot as plt
 import pickle
 from interruptible_pool import InterruptiblePool
 import time
+import getopt
 
 start_time = time.time()
 
-def check_jumps(a, particles):
+def check_jumps(a, particles, dr_thresh):
     com = particles[0]
     for i in range(1,rebound.get_N()):
         o = pytools.p2orbit(particles[i],com)
@@ -34,16 +35,21 @@ def check_jumps(a, particles):
     return
 
 def integrate(args):    
-    mthresh, taue, q = args
-    with open('/Users/dtamayo/Desktop/starters/m_{0:.2e}_taue_{1:.2e}_{2:1d}.pickle'.format(mthresh,taue,q), 'r') as f:
-        data = pickle.load(f)
+    mthresh, taue, ctr, dr_thresh = args
+    try:
+        with open('/Users/dtamayo/Desktop/starters/m_{0:.2e}_taue_{1:.2e}_{2:1d}.pickle'.format(mthresh,taue,ctr), 'r') as f:
+            data = pickle.load(f)
+    except (IOError, OSError) as e:
+        with open('eos/m_{0:.1e}_taue_{1:.1e}.txt'.format(mthresh,taue), mode='a') as f:
+            f.write("{0}\t{1:.3e}\n".format(ctr,0.))
+        return
         
     atrack = [0.,0.,0.,0.,0.,0.]
     rebound.reset()
     
     outputdelta=10.
     rebound.set_G(4.*math.pi**2)  
-    tmax = 1.e2
+    tmax = 1.e6
     
     prevparticles = data[0]
     tauas = data[1]
@@ -89,71 +95,40 @@ def integrate(args):
             N_output += 1
             last_t = _t
         rebound.step()
-        breakflag = check_jumps(atrack,particles)
+        breakflag = check_jumps(atrack,particles, dr_thresh)
         if breakflag is True:
             break
     
-    return (t,e,a,P)
+    with open('eos/m_{0:.1e}_taue_{1:.1e}.txt'.format(mthresh,taue), mode='a') as f:
+        f.write("{0}\t{1:.3e}\n".format(ctr,_t))
 
-
-dr_thresh = 5.        
-taue=5.e5
-mthresh=2.5e-4
-n_restarts = 3
-
-massmin = 5
-massmax = 1000
-Nmass = 10
-
-mearth = 3.0024584e-6 # in solar masses
-
-if Nmass == 1:
-    deltamass=0
-else:
-    deltamass = (np.log(massmax)-np.log(massmin))/(Nmass-1)
-
-masses = []
-for j in range(0,Nmass):
-    logmass = np.log(massmin) + j*deltamass
-    masses.append(pow(np.e,logmass)*mearth)
+def main(argv):
+    try:
+        opts, args = getopt.getopt(argv, "m:t:", ["mass=", "taue="])
+    except getopt.GetoptError:
+        print('Have to pass a mass and taue to this function')
+        sys.exit(2)
+        
+    for opt, arg in opts:
+        if opt in ("-m", "--mass"):
+            mass = float(arg)   
+        elif opt in ("-t", "--taue"):
+            taue = float(arg)
     
-'''args = []
-for q in range(n_restarts):
-    args.append((mthresh,taue,q))
+    dr_thresh = 5.   
+    args = []
+    for it in range(24):
+        args.append((mass,taue,it,dr_thresh))
+      
+    pool = InterruptiblePool()
+    pool.map(integrate, args)
 
-pool = InterruptiblePool()
-vars = pool.map(integrate,args)'''
-
-t,e,a,P = integrate((masses[6],1.e4,3))
-
-print(np.asarray(t).shape)
-
-'''t0 = vars[0][0][0]
-t1 = vars[1][0][0]
-t2 = vars[2][0][0]
-
-e0 = vars[0][1][2] # 0th shadow run, take the e from (t,e) and particle index 2 (middle one, most unstable)
-e1 = vars[1][1][2] # 1st shadow run...
-e2 = vars[2][1][2]'''
-
-start = 0
-end = max([len(t[i]) for i in range(5)])
-t0 = t[0]
-
-Pratio1 = [P[4][q]/P[3][q] for q in range(min(len(P[4]),len(P[3])))]
-Pratio2 = [P[3][q]/P[2][q] for q in range(min(len(P[3]),len(P[2])))]
-
-fig,ax = plt.subplots(3)
-
-for q in range(2,5):
-    ax[0].plot(t0[start:end],e[q][start:end], '.')
-    
-ax[1].plot(t0[start:end],Pratio1, '.')
-ax[1].plot(t0[start:end],Pratio2, '.')
-
-for q in range(5):
-    ax[2].plot(t0[start:end],a[q][start:end], '.')
+if __name__ == "__main__":
+    try:
+        os.mkdir("eos")
+    except OSError:
+        pass
+    main(sys.argv[1:])   
+      
 
 
-print("Took {0} seconds".format(time.time() - start_time))
-plt.show()
