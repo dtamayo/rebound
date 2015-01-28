@@ -6,7 +6,6 @@ import math
 import os
 import pytools
 import random
-import matplotlib.pyplot as plt
 import pickle
 from interruptible_pool import InterruptiblePool
 import time
