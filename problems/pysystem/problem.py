@@ -45,7 +45,7 @@ def integrate(args):
     sun = rebound.Particle(m=starmass)
     rebound.particle_add(sun)
 
-    a0s = [0.,13.6,33.3,65.1,77.3,93.0]
+    a0s = [0.,13.6,33.3,71.2,93.0]
 
     for a in a0s[1:]:
         p = pytools.kepler_particle(m=mass,primary=sun,a=a,anom=0.,e=0.,omega=0.,inc=0.,Omega=0.)
@@ -89,7 +89,7 @@ def main(argv,folder):
     pool.map(integrate, args)
 
 if __name__ == "__main__":
-    folder = "5p"
+    folder = "4pinnerco"
     try:
         os.mkdir(folder)
     except OSError:
