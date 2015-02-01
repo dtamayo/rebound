@@ -124,7 +124,7 @@ for q in range(n_restarts):
 pool = InterruptiblePool()
 vars = pool.map(integrate,args)'''
 
-t,e,a,P = integrate((masses[6],1.e4,3))
+t,e,a,P = integrate((masses[3],1.e7,3))
 
 print(np.asarray(t).shape)
 
