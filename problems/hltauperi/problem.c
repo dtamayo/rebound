@@ -81,7 +81,7 @@ extern int display_wire;
 void problem_init(int argc, char* argv[]){
 	// Setup constants
     
-    double massfac = input_get_double(argc,argv,"mass",1.e-8); // in jup masses
+    double massfac = input_get_double(argc,argv,"mass",1.); // in jup masses
     double starmass = input_get_double(argc,argv,"starmass",0.55); // in solar masses
     double taue = input_get_double(argc,argv,"taue",1.e20);
     double k = input_get_double(argc,argv,"k",100);
@@ -200,6 +200,7 @@ void problem_migration_forces(){
 			particles[0].ay -= p->m/particles[0].m*a_over_r*dy;
 			particles[0].az -= p->m/particles[0].m*a_over_r*dz;
 		}
+		com = tools_get_center_of_mass(com,particles[i]);
 	}
 }
 void problem_inloop(){
