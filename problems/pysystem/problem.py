@@ -19,14 +19,14 @@ def check_jumps(a, particles, dr_thresh):
         o = pytools.p2orbit(particles[i],com)
 
         if o.a*o.e > dr_thresh:
-            print("Planet {} had a*e > {} AU\n".format(i,dr_thresh))
+            print("Planet {0} had a*e > {1} AU\n".format(i,dr_thresh))
             return True
 
         if a[i] == 0.:
             a[i] = o.a
             
         if math.fabs(o.a - a[i]) > dr_thresh:
-            print("Planet {} had semimajor axis jump by more than {} AU".format(i, dr_thresh))
+            print("Planet {0} had semimajor axis jump by more than {1} AU".format(i, dr_thresh))
             return True
         
         a[i] = o.a
