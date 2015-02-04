@@ -169,6 +169,10 @@ void reset(){
 		free(tau_i);
 		tau_i = NULL;
 	}
+	if(problem_additional_forces){
+		free(problem_additional_forces);
+		problem_additional_forces = NULL;
+	}
 }
 
 // Integrate until t=_tmax
