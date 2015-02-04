@@ -21,8 +21,9 @@ a = [0.,13.6,33.3,a0,a0*afac,a0*afac**2]    # AU
 
 e = 1.e-8
 inc = 1.e-8
-taue=1.e5
-taua=taue*100
+taue=1.e4
+k = 100
+taua=taue*k
 taues = (0.,taue,taue,taue,taue,taue)
 tauis = (0.,taue,taue,taue,taue,taue)
 tauas = (0.,0.,0.,0.,0.,taua)
@@ -88,14 +89,28 @@ while rebound.get_t()<tmax:
     
     rebound.step()
 
-print(a)
 fig,axs = plt.subplots(4)
+axs[0].set_title(r'$a_3,a_4,a_5$ = '+' {0:.1f}\t{1:.1f}\t{2:.1f}'.format(a[3],a[4],a[5]))
 axs[0].plot(t,phi343)
 axs[1].plot(t,phi344)
 axs[2].plot(t,phi454)
 axs[3].plot(t,phi455)
-plt.show()
-with open('taue_{0:.1e}_starter.bin'.format(taue), 'wb') as f:
-    pickle.dump(([particles[q] for q in range(N)],tauas,taues,tauis),f)
-        
+axs[0].set_ylabel(r'$\phi_{34}^i$')
+axs[1].set_ylabel(r'$\phi_{34}^o$')
+axs[2].set_ylabel(r'$\phi_{45}^i$')
+axs[3].set_ylabel(r'$\phi_{45}^o$')
+axs[3].set_xlabel('t (yrs)')
+
+plt.savefig("inres/taue_{0:.1e}_k{1:}.png".format(taue,k))
+
+with open('inres/taue_{0:.1e}_k{1:}.txt'.format(taue,k), 'w') as f:
+    f.write("{0:.2f}\t{1:.2f}\t{2:.2f}\n".format(a[3],a[4],a[5]))
+    f.write("{0:.2f}\t{1:.2f}\n".format(np.mean(phi343[-100:]), np.std(phi343[-100:])))
+    f.write("{0:.2f}\t{1:.2f}\n".format(np.mean(phi344[-100:]), np.std(phi344[-100:])))
+    f.write("{0:.2f}\t{1:.2f}\n".format(np.mean(phi454[-100:]), np.std(phi454[-100:])))
+    f.write("{0:.2f}\t{1:.2f}\n".format(np.mean(phi455[-100:]), np.std(phi455[-100:])))
+
+rebound.reset()
+
+print(particles[1].x)
 print("Took {0} seconds".format(time.time() - start_time))
