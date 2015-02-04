@@ -35,7 +35,7 @@ def check_jumps(a, particles, dr_thresh):
 
 def integrate(args):    
     mass, taue, ctr, dr_thresh,folder = args
-    
+     
     rebound.reset()
     G = 4*math.pi**2
     rebound.set_G(G)
