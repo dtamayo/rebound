@@ -159,21 +159,16 @@ void reset(){
 	struct timeval tim;
 	gettimeofday(&tim, NULL);
 	srand ( tim.tv_usec + getpid());
-	if(tau_a){
-		free(tau_a);
-		tau_a = NULL;
-	}
-	if(tau_e){
-		free(tau_e);
-		tau_e = NULL;
-	}
-	if(tau_i){
-		free(tau_i);
-		tau_i = NULL;
-	}
+
 	if(problem_additional_forces){
 		free(problem_additional_forces);
 		problem_additional_forces = NULL;
+		free(tau_a);
+		tau_a = NULL;
+		free(tau_e);
+		tau_e = NULL;
+		free(tau_i);
+		tau_i = NULL;
 	}
 }
 
