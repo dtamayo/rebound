@@ -157,9 +157,18 @@ void reset(){
 	struct timeval tim;
 	gettimeofday(&tim, NULL);
 	srand ( tim.tv_usec + getpid());
-	if(tau_a){	free(tau_a);	}
-	if(tau_e){	free(tau_e);	}
-	if(tau_i){	free(tau_i);	}
+	if(tau_a){
+		free(tau_a);
+		tau_a = NULL;
+	}
+	if(tau_e){
+		free(tau_e);
+		tau_e = NULL;
+	}
+	if(tau_i){
+		free(tau_i);
+		tau_i = NULL;
+	}
 }
 
 // Integrate until t=_tmax
