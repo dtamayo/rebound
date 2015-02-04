@@ -110,7 +110,4 @@ with open('inres/taue_{0:.1e}_k{1:}.txt'.format(taue,k), 'w') as f:
     f.write("{0:.2f}\t{1:.2f}\n".format(np.mean(phi454[-100:]), np.std(phi454[-100:])))
     f.write("{0:.2f}\t{1:.2f}\n".format(np.mean(phi455[-100:]), np.std(phi455[-100:])))
 
-rebound.reset()
-
-print(particles[1].x)
 print("Took {0} seconds".format(time.time() - start_time))

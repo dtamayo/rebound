@@ -58,11 +58,15 @@ def integrate(args):
     
     rebound.add_e_damping([taue for i in range(N)])
 
+    tprev = -2.
+    dtthresh = 1.
     while rebound.get_t()<tmax:
         _t = rebound.get_t()
         rebound.step()
         breakflag = check_jumps(a0s,particles, dr_thresh)
         if breakflag is True:
+            break
+        if _t - tprev < dtthresh:
             break
     
     with open(folder+'/eos/m_{0:.1e}_taue_{1:.1e}.txt'.format(mass,taue), mode='a') as f:
