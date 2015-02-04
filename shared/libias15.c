@@ -73,7 +73,9 @@ struct disk{
 struct disk dsk; // structure to hold disk parameters for pericenter precession
 
 // pointers for damping timescales
-double *tau_a, *tau_e, *tau_i;
+double *tau_a = NULL;
+double *tau_e = NULL;
+double *tau_i = NULL;
 
 double e_damping_p; // p parameter from Goldreich & Schlichting 2014 for how e-damping
 // contributes to a-damping at order e^2
