@@ -57,7 +57,7 @@ def integrate(args):
 
     N = rebound.get_N()  
     
-    rebound.add_e_damping([taue for i in range(N)])
+    #rebound.add_e_damping([taue for i in range(N)])
 
     tprev = -2.
     dtthresh = 1.
@@ -92,7 +92,7 @@ def main(argv,folder):
     for it in range(1):
         args.append((mass,taue,it,dr_thresh,folder))
       
-    pool = InterruptiblePool(1)
+    pool = InterruptiblePool()
     pool.map(integrate, args)
 
 if __name__ == "__main__":
