@@ -161,8 +161,7 @@ void reset(){
 	srand ( tim.tv_usec + getpid());
 
 	if(problem_additional_forces){
-		free(problem_additional_forces);
-		problem_additional_forces = NULL;
+		problem_additional_forces = NULL; // don't use free since it wasn't allocated with malloc
 		free(tau_a);
 		tau_a = NULL;
 		free(tau_e);

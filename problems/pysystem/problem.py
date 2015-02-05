@@ -36,6 +36,7 @@ def check_jumps(a, particles, dr_thresh):
 def integrate(args):    
     mass, taue, ctr, dr_thresh,folder = args
      
+    print(taue)
     rebound.reset()
     G = 4*math.pi**2
     rebound.set_G(G)
@@ -69,6 +70,7 @@ def integrate(args):
         if _t - tprev < dtthresh:
             break
     
+    print(_t)
     with open(folder+'/eos/m_{0:.1e}_taue_{1:.1e}.txt'.format(mass,taue), mode='a') as f:
         f.write("{0}\t{1:.3e}\n".format(ctr,_t))
 
@@ -87,10 +89,10 @@ def main(argv,folder):
     
     dr_thresh = 5.   
     args = []
-    for it in range(24):
+    for it in range(1):
         args.append((mass,taue,it,dr_thresh,folder))
       
-    pool = InterruptiblePool()
+    pool = InterruptiblePool(1)
     pool.map(integrate, args)
 
 if __name__ == "__main__":
