@@ -57,7 +57,6 @@ tauis = data[3]
 for p in prevparticles: # data[0] is a list of the particles
     rebound.particle_add(p)
 
-rebound.init_damping_forces()
 rebound.add_migration(tauas)
 rebound.add_e_damping(taues)
 rebound.add_i_damping(tauis)
@@ -85,14 +84,14 @@ for q in range(N-1):
     P.append([])
     mass.append([])
 
-last_t = -1e6 # to keep track of output
+last_t = -1 # to keep track of output
 N_output = 0
 
 while rebound.get_t()<tmax:
     _t = rebound.get_t()
     if _t - last_t > outputdelta:
         com = particles[0]
-        dt = 0 if last_t == -1e6 else _t - last_t
+        #dt = 0 if last_t == -1e6 else _t - last_t
         for i in range(1,N):
             o = pytools.p2orbit(particles[i],com)#particles[0])
             t[i-1].append(_t)
@@ -106,17 +105,17 @@ while rebound.get_t()<tmax:
             
             if i==N-1 and particles[i].m < mthresh:
                 tlib = 0.078*(particles[i].m/0.55)**(-2./3.)*o.P
-                deltaM = particles[i].m * dt / 10. / tlib
+                deltaM = particles[i].m * (_t - last_t) / 10. / tlib
                 
             com = pytools.get_center_of_mass(com, particles[i])    
         N_output += 1
         last_t = _t
-    for i in range(1,N):
-        particles[i].m += deltaM
+        for i in range(1,N):
+            particles[i].m += deltaM
     
-    if particles[3].m > mthresh:
-        make_restarts()
-        break
+        if particles[3].m > mthresh:
+            make_restarts()
+            break
 
     rebound.step()
 
