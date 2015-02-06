@@ -8,7 +8,6 @@ import pytools
 import pickle
 import time
 import random
-import matplotlib.pyplot as plt
 from interruptible_pool import InterruptiblePool
 import getopt
 
@@ -129,7 +128,7 @@ def initialize(args):
 
     if np.std(phi343[-tlib_ind:]) > lib_thresh or np.std(phi344[-tlib_ind:]) > lib_thresh or np.std(phi454[-tlib_ind:]) > lib_thresh or np.std(phi455[-tlib_ind:]) > lib_thresh:
         print("Iteration {0}: Didn't capture into resonance".format(iterctr))
-        fig,axs = plt.subplots(2)
+        '''fig,axs = plt.subplots(2)
         axs[0].set_title(r'After Capture: $a_3,a_4,a_5$ = '+' {0:.1f}\t{1:.1f}\t{2:.1f}'.format(np.mean(a[3][-tlib_ind:]),np.mean(a[4][-tlib_ind:]),np.mean(a[5][-tlib_ind:])))
         axs[0].plot(t,phi343)
         axs[0].plot(t,phi344)
@@ -143,7 +142,7 @@ def initialize(args):
         axs[1].set_xlabel('t (yrs)')
 
         plt.savefig(folder+"/capinresprobs/m_{0:.1e}_taue_{1:.1e}_k{2:.1e}.png".format(mass,taue,k))
-
+        '''
         with open(folder+'/capinresprobs.txt', 'a') as f:
             f.write("{0:.1e}\t{1:1e}\t{2:3f}\t{3:.2f}\t{4:.2f}\t{5:.2f}\t{6:.2f}\t{7:.2f}\t{8:.2f}\t{9:.2f}\t{10:.2f}\t{11:.2f}\t{12:.2f}\t{13:.2f}\n"
             .format(mass,taue,k,np.mean(a[3][-tlib_ind:]),np.mean(a[4][-tlib_ind:]),np.mean(a[5][-tlib_ind:]),np.mean(phi343[-tlib_ind:]), np.std(phi343[-tlib_ind:]),
@@ -204,7 +203,7 @@ def initialize(args):
     
     if breakFlag is True:
         print("Went unstable while growing")
-        fig,axs = plt.subplots(2)
+        '''fig,axs = plt.subplots(2)
         axs[0].set_title(r'After Growth: $a_3,a_4,a_5$ = '+' {0:.1f}\t{1:.1f}\t{2:.1f}'.format(np.mean(a[3][-tlib_ind:]),np.mean(a[4][-tlib_ind:]),np.mean(a[5][-tlib_ind:])))
         axs[0].plot(t,phi343)
         axs[0].plot(t,phi344)
@@ -218,7 +217,7 @@ def initialize(args):
         axs[1].set_xlabel('t (yrs)')
 
         plt.savefig(folder+"/growprobs/m_{0:.1e}_taue_{1:.1e}_k{2:.1e}.png".format(mass,taue,k))
-
+        '''
         with open(folder+'/growprobs.txt', 'a') as f:
             f.write("{0:.1e}\t{1:1e}\t{2:3f}\t{3:.2f}\t{4:.2f}\t{5:.2f}\t{6:.2f}\t{7:.2f}\t{8:.2f}\t{9:.2f}\t{10:.2f}\t{11:.2f}\t{12:.2f}\t{13:.2f}\n"
             .format(mass,taue,k,np.mean(a[3][-tlib_ind:]),np.mean(a[4][-tlib_ind:]),np.mean(a[5][-tlib_ind:]),np.mean(phi343[-tlib_ind:]), np.std(phi343[-tlib_ind:]),
