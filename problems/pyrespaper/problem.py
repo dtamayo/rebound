@@ -128,7 +128,7 @@ def initialize(args):
 
     if np.std(phi343[-tlib_ind:]) > lib_thresh or np.std(phi344[-tlib_ind:]) > lib_thresh or np.std(phi454[-tlib_ind:]) > lib_thresh or np.std(phi455[-tlib_ind:]) > lib_thresh:
         print("Iteration {0}: Didn't capture into resonance".format(iterctr))
-        '''fig,axs = plt.subplots(2)
+        fig,axs = plt.subplots(2)
         axs[0].set_title(r'After Capture: $a_3,a_4,a_5$ = '+' {0:.1f}\t{1:.1f}\t{2:.1f}'.format(np.mean(a[3][-tlib_ind:]),np.mean(a[4][-tlib_ind:]),np.mean(a[5][-tlib_ind:])))
         axs[0].plot(t,phi343)
         axs[0].plot(t,phi344)
@@ -142,7 +142,7 @@ def initialize(args):
         axs[1].set_xlabel('t (yrs)')
 
         plt.savefig(folder+"/capinresprobs/m_{0:.1e}_taue_{1:.1e}_k{2:.1e}.png".format(mass,taue,k))
-        '''
+        plt.show()
         with open(folder+'/capinresprobs.txt', 'a') as f:
             f.write("{0:.1e}\t{1:1e}\t{2:3f}\t{3:.2f}\t{4:.2f}\t{5:.2f}\t{6:.2f}\t{7:.2f}\t{8:.2f}\t{9:.2f}\t{10:.2f}\t{11:.2f}\t{12:.2f}\t{13:.2f}\n"
             .format(mass,taue,k,np.mean(a[3][-tlib_ind:]),np.mean(a[4][-tlib_ind:]),np.mean(a[5][-tlib_ind:]),np.mean(phi343[-tlib_ind:]), np.std(phi343[-tlib_ind:]),
@@ -203,7 +203,7 @@ def initialize(args):
     
     if breakFlag is True:
         print("Went unstable while growing")
-        '''fig,axs = plt.subplots(2)
+        fig,axs = plt.subplots(2)
         axs[0].set_title(r'After Growth: $a_3,a_4,a_5$ = '+' {0:.1f}\t{1:.1f}\t{2:.1f}'.format(np.mean(a[3][-tlib_ind:]),np.mean(a[4][-tlib_ind:]),np.mean(a[5][-tlib_ind:])))
         axs[0].plot(t,phi343)
         axs[0].plot(t,phi344)
@@ -217,7 +217,7 @@ def initialize(args):
         axs[1].set_xlabel('t (yrs)')
 
         plt.savefig(folder+"/growprobs/m_{0:.1e}_taue_{1:.1e}_k{2:.1e}.png".format(mass,taue,k))
-        '''
+        plt.show()
         with open(folder+'/growprobs.txt', 'a') as f:
             f.write("{0:.1e}\t{1:1e}\t{2:3f}\t{3:.2f}\t{4:.2f}\t{5:.2f}\t{6:.2f}\t{7:.2f}\t{8:.2f}\t{9:.2f}\t{10:.2f}\t{11:.2f}\t{12:.2f}\t{13:.2f}\n"
             .format(mass,taue,k,np.mean(a[3][-tlib_ind:]),np.mean(a[4][-tlib_ind:]),np.mean(a[5][-tlib_ind:]),np.mean(phi343[-tlib_ind:]), np.std(phi343[-tlib_ind:]),
@@ -250,17 +250,17 @@ def initialize(args):
             a0[i] *= meanfac
         print("iterfac = {0}, mds = {1}".format(meanfac,mds))
         if mds/last_mds > 1.: #if the squared differences for outer planets don't decrease by at least 20%,quit
-            print("Differences not getting appreciably smaller")
-            with open(folder+'/iterationprobs.txt', 'a') as f:
-                f.write("{0:.1e}\t{1:1e}\t{2:1e}\t{3}\n".format(mass,taue,k,diffs))
-            # If we can't get it into resonance, set eos t=0
-            with open(folder+'/eos/m_{0:.1e}_taue_{1:.1e}.txt'.format(mass,taue), mode='a') as f:
-                f.write("{0}\t{1:.3e}\t{2:.1f}\t{3:.1f}\t{4:.1f}\t{5}\n".format(it,0.,-2,-2,-2,0))
-            return
+            print("Trying to jiggle a0")
+            last_mds = 1.6
+            for i in range(3,6):
+                a0[i] += 1.
+            iterctr += 1
+            return initialize((mass,taue,k,a0,atarget,a_error,iterctr,last_mds,it,folder,dr_thresh)) # if you don't return, returns within function called recursively won't work!
+
         iterctr += 1
         last_mds = mds
-        if iterctr > 3:
-            print("Ran past 3 iterations.  Exiting...")
+        if iterctr > 4:
+            print("Ran past 4 iterations.  Exiting...")
             with open(folder+'/iterationprobs.txt', 'a') as f:
                 f.write("{0:.1e}\t{1:1e}\t{2:1e}\t{3}\n".format(mass,taue,k,diffs))
             # If we can't get it into resonance, set eos t=0
@@ -308,14 +308,14 @@ def main(argv,folder):
     afac = 1.24
     a0 = [0.,13.6,33.3,a0,a0*afac,a0*afac**2]    # AU
     atarget = [0.,13.6,33.3,65.1,77.3,93.0]
-    a_error = 2.5
+    a_error = 3
     iterctr = 0
     last_mds = 1.e6
     k=100
     dr_thresh = 5.  
      
     args = []
-    for it in range(1):
+    for it in range(24):
         args.append((mass,taue,k,a0,atarget,a_error,iterctr,last_mds,it,folder,dr_thresh))
     
     pool = InterruptiblePool()
