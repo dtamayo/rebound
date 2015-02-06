@@ -42,12 +42,12 @@ def initialize(args):
     if taue == 1.e4:
         if mass < 1.15e-4:
             with open(folder+'/eos/m_{0:.1e}_taue_{1:.1e}.txt'.format(mass,taue), mode='a') as f:
-                f.write("{0}\t{1:.3e}\n".format(it,1.e6))
+                f.write("{0}\t{1:.3e}\t{2:.1f}\t{3:.1f}\t{4:.1f}\n".format(it,1.e6,0.,0.,0.,0))
             return
     else:
         if mass < 3.e-5:
             with open(folder+'/eos/m_{0:.1e}_taue_{1:.1e}.txt'.format(mass,taue), mode='a') as f:
-                f.write("{0}\t{1:.3e}\n".format(it,1.e6))
+                f.write("{0}\t{1:.3e}\t{2:.1f}\t{3:.1f}\t{4:.1f}\n".format(it,1.e6,0.,0.,0.,0))
             return
         
     rebound.reset()
@@ -288,7 +288,7 @@ def initialize(args):
     
     print(_t)
     with open(folder+'/eos/m_{0:.1e}_taue_{1:.1e}.txt'.format(mass,taue), mode='a') as f:
-        f.write("{0}\t{1:.3e}\t{2:.1f}\t{3:.1f}\t{4:.1f}\t{5}\n".format(it,_t,diffs[0],diffs[1],diffs[2],1))
+        f.write("{0}\t{1:.3e}\t{2:.1f}\t{3:.1f}\t{4:.1f}\t{5}\n".format(it,_t,diffs[-3],diffs[-2],diffs[-1],1))
     
     return
 def main(argv,folder):
