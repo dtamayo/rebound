@@ -318,9 +318,8 @@ def main(argv,folder):
     for it in range(1):
         args.append((mass,taue,k,a0,atarget,a_error,iterctr,last_mds,it,folder,dr_thresh))
     
-    initialize(args[0])
-    #pool = InterruptiblePool()
-    #pool.map(initialize, args)
+    pool = InterruptiblePool()
+    pool.map(initialize, args)
 
 if __name__ == "__main__":
     folder = "5p"
@@ -330,14 +329,6 @@ if __name__ == "__main__":
         pass
     try:
         os.mkdir(folder+"/eos")
-    except OSError:
-        pass
-    try:
-        os.mkdir(folder+"/capinresprobs")
-    except OSError:
-        pass
-    try:
-        os.mkdir(folder+"/growprobs")
     except OSError:
         pass
 
