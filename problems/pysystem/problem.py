@@ -36,7 +36,6 @@ def check_jumps(a, particles, dr_thresh):
 def integrate(args):    
     mass, taue, ctr, dr_thresh,folder = args
      
-    print(taue)
     rebound.reset()
     G = 4*math.pi**2
     rebound.set_G(G)
@@ -47,7 +46,7 @@ def integrate(args):
     sun = rebound.Particle(m=starmass)
     rebound.particle_add(sun)
 
-    a0s = [0.,13.6,33.3,71.2,93.0]
+    a0s = [0.,13.6,33.3,66.1,77.3,92.0]
 
     for a in a0s[1:]:
         p = pytools.kepler_particle(m=mass,primary=sun,a=a,anom=random.uniform(0,2*math.pi),e=0.,omega=0.,inc=0.,Omega=0.)
@@ -57,7 +56,7 @@ def integrate(args):
 
     N = rebound.get_N()  
     
-    #rebound.add_e_damping([taue for i in range(N)])
+    rebound.add_e_damping([taue for i in range(N)])
 
     tprev = -2.
     dtthresh = 1.
@@ -70,7 +69,6 @@ def integrate(args):
         if _t - tprev < dtthresh:
             break
     
-    print(_t)
     with open(folder+'/eos/m_{0:.1e}_taue_{1:.1e}.txt'.format(mass,taue), mode='a') as f:
         f.write("{0}\t{1:.3e}\n".format(ctr,_t))
 
@@ -89,14 +87,14 @@ def main(argv,folder):
     
     dr_thresh = 5.   
     args = []
-    for it in range(1):
+    for it in range(24):
         args.append((mass,taue,it,dr_thresh,folder))
       
     pool = InterruptiblePool()
     pool.map(integrate, args)
 
 if __name__ == "__main__":
-    folder = "5p"
+    folder = "5pshift"
     try:
         os.mkdir(folder)
     except OSError:
