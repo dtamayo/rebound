@@ -10,6 +10,7 @@ import time
 import random
 from interruptible_pool import InterruptiblePool
 import getopt
+import matplotlib.pyplot as plt
 
 start_time = time.time()
 
@@ -40,12 +41,12 @@ def initialize(args):
     # if we're below the following masses, then we're stable even out of resonance (and the below code
     # starts with a larger mass value to grow from), so automatically set to 1e6
     if taue == 1.e4:
-        if mass < 1.15e-4:
+        if mass < 2e-4:
             with open(folder+'/eos/m_{0:.1e}_taue_{1:.1e}.txt'.format(mass,taue), mode='a') as f:
                 f.write("{0}\t{1:.3e}\t{2:.1f}\t{3:.1f}\t{4:.1f}\n".format(it,1.e6,0.,0.,0.,0))
             return
     else:
-        if mass < 3.e-5:
+        if mass < 6.e-5:
             with open(folder+'/eos/m_{0:.1e}_taue_{1:.1e}.txt'.format(mass,taue), mode='a') as f:
                 f.write("{0}\t{1:.3e}\t{2:.1f}\t{3:.1f}\t{4:.1f}\n".format(it,1.e6,0.,0.,0.,0))
             return
@@ -54,21 +55,22 @@ def initialize(args):
     rebound.set_G(4.*math.pi**2)  
 
     starmass = 0.55     # in solar masses
-    N = 6              # including central star    
+    N = 5              # including central star    
 
     e = 1.e-8
     inc = 1.e-8
     taua=taue*k
-    taues = [taue]*6
-    tauas = [0.,0.,0.,0.,0.,taua]
+    taues = [taue]*N
+    tauas = [0.]*(N-1)
+    tauas.append(taua)
 
-    m0 = 1.15e-4 if taue == 1.e4 else 3.e-5 # use 3.e-5 Msun = 10 Mearth for anything
+    m0 = 2.e-4 if taue == 1.e4 else 6.e-5 # use 3.e-5 Msun = 10 Mearth for anything
 # but taue = 1e4, as these will capture.  For taue=1e4 (taua=1e6), the libration 
 # timescale is too long for 10 Mearth, so have to raise to ~39 Mearth in order to 
 # shorten the libration timescale and capture.  This is stable in non-resonant case,
 # so no problem starting this high, since masses below this would only be more stable
 
-    tmax = taua/3.
+    tmax = taua/2.
     outputdelta=tmax/1000. # so we get about 10k points
 
     # Add particles
@@ -93,8 +95,7 @@ def initialize(args):
 
     phi343 = [] # res angle between planet 3 & 4, with pericenter of 3 etc.
     phi344 = []
-    phi454 = []
-    phi455 = [] 
+    
     l = [0]*rebound.get_N() # list of N 0s
     po = [0]*rebound.get_N()
     a = [[] for i in range(rebound.get_N())]
@@ -110,10 +111,9 @@ def initialize(args):
                 po[i] = o.Omega + o.omega
                 a[i].append(o.a)
                 pytools.get_center_of_mass(com, particles[i])   
-            phi343.append(pytools.mod2pi(4*l[4] - 3*l[3] - po[3]))
-            phi344.append(pytools.mod2pi(4*l[4] - 3*l[3] - po[4]))
-            phi454.append(pytools.mod2pi(4*l[5] - 3*l[4] - po[4]))
-            phi455.append(pytools.mod2pi(4*l[5] - 3*l[4] - po[5]))
+            phi343.append(pytools.mod2pi(3*l[4] - 2*l[3] - po[3]))
+            phi344.append(pytools.mod2pi(3*l[4] - 2*l[3] - po[4]))
+            
             t.append(_t)
             N_output += 1
             last_t = _t
@@ -126,14 +126,12 @@ def initialize(args):
 
     lib_thresh = 0.5
 
-    if aanp.std(phi343[-tlib_ind:]) > lib_thresh or np.std(phi344[-tlib_ind:]) > lib_thresh or np.std(phi454[-tlib_ind:]) > lib_thresh or np.std(phi455[-tlib_ind:]) > lib_thresh:
+    if np.std(phi343[-tlib_ind:]) > lib_thresh or np.std(phi344[-tlib_ind:]) > lib_thresh:
         print("Iteration {0}: Didn't capture into resonance".format(iterctr))
         fig,axs = plt.subplots(2)
-        axs[0].set_title(r'After Capture: $a_3,a_4,a_5$ = '+' {0:.1f}\t{1:.1f}\t{2:.1f}'.format(np.mean(a[3][-tlib_ind:]),np.mean(a[4][-tlib_ind:]),np.mean(a[5][-tlib_ind:])))
+        axs[0].set_title(r'After Capture: $a_3,a_4$ = '+' {0:.1f}\t{1:.1f}'.format(np.mean(a[3][-tlib_ind:]),np.mean(a[4][-tlib_ind:])))
         axs[0].plot(t,phi343)
         axs[0].plot(t,phi344)
-        axs[0].plot(t,phi454)
-        axs[0].plot(t,phi455)
         axs[0].set_ylabel(r'$\phi s$')
 
         for i in range(1,N):
@@ -144,9 +142,9 @@ def initialize(args):
         plt.savefig(folder+"/capinresprobs/m_{0:.1e}_taue_{1:.1e}_k{2:.1e}.png".format(mass,taue,k))
         plt.show()
         with open(folder+'/capinresprobs.txt', 'a') as f:
-            f.write("{0:.1e}\t{1:1e}\t{2:3f}\t{3:.2f}\t{4:.2f}\t{5:.2f}\t{6:.2f}\t{7:.2f}\t{8:.2f}\t{9:.2f}\t{10:.2f}\t{11:.2f}\t{12:.2f}\t{13:.2f}\n"
-            .format(mass,taue,k,np.mean(a[3][-tlib_ind:]),np.mean(a[4][-tlib_ind:]),np.mean(a[5][-tlib_ind:]),np.mean(phi343[-tlib_ind:]), np.std(phi343[-tlib_ind:]),
-            np.mean(phi344[-tlib_ind:]), np.std(phi344[-tlib_ind:]),np.mean(phi454[-tlib_ind:]), np.std(phi454[-tlib_ind:]),np.mean(phi455[-tlib_ind:]), np.std(phi455[-tlib_ind:])))
+            f.write("{0:.1e}\t{1:1e}\t{2:3f}\t{3:.2f}\t{4:.2f}\t{5:.2f}\t{6:.2f}\t{7:.2f}\t{8:.2f}\n"
+            .format(mass,taue,k,np.mean(a[3][-tlib_ind:]),np.mean(a[4][-tlib_ind:]),np.mean(phi343[-tlib_ind:]), np.std(phi343[-tlib_ind:]),
+            np.mean(phi344[-tlib_ind:]), np.std(phi344[-tlib_ind:])))
         iterctr += 1
         initialize((mass,taue,k,a0,atarget,a_error,iterctr,last_mds,it,folder,dr_thresh))
       
@@ -157,8 +155,7 @@ def initialize(args):
 
     phi343 = [] # res angle between planet 3 & 4, with pericenter of 3 etc.
     phi344 = []
-    phi454 = []
-    phi455 = [] 
+    
     l = [0]*rebound.get_N() # list of N 0s
     po = [0]*rebound.get_N()
     a = [[] for i in range(rebound.get_N())]
@@ -184,10 +181,8 @@ def initialize(args):
                 po[i] = o.Omega + o.omega
                 a[i].append(o.a)
                 pytools.get_center_of_mass(com, particles[i])   
-            phi343.append(pytools.mod2pi(4*l[4] - 3*l[3] - po[3]))
-            phi344.append(pytools.mod2pi(4*l[4] - 3*l[3] - po[4]))
-            phi454.append(pytools.mod2pi(4*l[5] - 3*l[4] - po[4]))
-            phi455.append(pytools.mod2pi(4*l[5] - 3*l[4] - po[5]))
+            phi343.append(pytools.mod2pi(3*l[4] - 2*l[3] - po[3]))
+            phi344.append(pytools.mod2pi(3*l[4] - 2*l[3] - po[4]))
             t.append(_t)   
             last_t = _t
         if _t > 1.e3 and _t - tprev < 0.1: # timestep got too small (close encounter)
@@ -196,7 +191,7 @@ def initialize(args):
         tprev = _t
         rebound.step()
         
-    if rebound.get_N() < 6:
+    if rebound.get_N() < 5:
         breakFlag = True
     if particles[3].m < mass:
         breakFlag = True
@@ -204,11 +199,9 @@ def initialize(args):
     if breakFlag is True:
         print("Went unstable while growing")
         fig,axs = plt.subplots(2)
-        axs[0].set_title(r'After Growth: $a_3,a_4,a_5$ = '+' {0:.1f}\t{1:.1f}\t{2:.1f}'.format(np.mean(a[3][-tlib_ind:]),np.mean(a[4][-tlib_ind:]),np.mean(a[5][-tlib_ind:])))
+        axs[0].set_title(r'After Growth: $a_3,a_4$ = '+' {0:.1f}\t{1:.1f}'.format(np.mean(a[3][-tlib_ind:]),np.mean(a[4][-tlib_ind:])))
         axs[0].plot(t,phi343)
         axs[0].plot(t,phi344)
-        axs[0].plot(t,phi454)
-        axs[0].plot(t,phi455)
         axs[0].set_ylabel(r'$\phi s$')
 
         for i in range(1,N):
@@ -219,9 +212,9 @@ def initialize(args):
         plt.savefig(folder+"/growprobs/m_{0:.1e}_taue_{1:.1e}_k{2:.1e}.png".format(mass,taue,k))
         plt.show()
         with open(folder+'/growprobs.txt', 'a') as f:
-            f.write("{0:.1e}\t{1:1e}\t{2:3f}\t{3:.2f}\t{4:.2f}\t{5:.2f}\t{6:.2f}\t{7:.2f}\t{8:.2f}\t{9:.2f}\t{10:.2f}\t{11:.2f}\t{12:.2f}\t{13:.2f}\n"
-            .format(mass,taue,k,np.mean(a[3][-tlib_ind:]),np.mean(a[4][-tlib_ind:]),np.mean(a[5][-tlib_ind:]),np.mean(phi343[-tlib_ind:]), np.std(phi343[-tlib_ind:]),
-            np.mean(phi344[-tlib_ind:]), np.std(phi344[-tlib_ind:]),np.mean(phi454[-tlib_ind:]), np.std(phi454[-tlib_ind:]),np.mean(phi455[-tlib_ind:]), np.std(phi455[-tlib_ind:])))
+            f.write("{0:.1e}\t{1:1e}\t{2:3f}\t{3:.2f}\t{4:.2f}\t{5:.2f}\t{6:.2f}\t{7:.2f}\t{8:.2f}\n"
+            .format(mass,taue,k,np.mean(a[3][-tlib_ind:]),np.mean(a[4][-tlib_ind:]),np.mean(phi343[-tlib_ind:]), np.std(phi343[-tlib_ind:]),
+            np.mean(phi344[-tlib_ind:]), np.std(phi344[-tlib_ind:])))
 
         # If we can't get it into resonance, set eos t=0
         with open(folder+'/eos/m_{0:.1e}_taue_{1:.1e}.txt'.format(mass,taue), mode='a') as f:
@@ -231,28 +224,28 @@ def initialize(args):
     af = [0]
     for i in range(1,rebound.get_N()):
         af.append(np.mean(a[i][-tlib_ind:]))
-    diffs = [atarget[i] - af[i] for i in range(6)]
+    diffs = [atarget[i] - af[i] for i in range(5)]
     iterfac = []
     
-    print("Diffs = {0}".format(diffs[3:6]))
+    print("Diffs = {0}".format(diffs[3:5]))
     
     iterflag = False
     
-    for i in range(3,6):
+    for i in range(3,5):
         if math.fabs(diffs[i]) > a_error:
             iterfac.append(atarget[i]/af[i])
             iterflag = True
     
     if iterflag is True:
         meanfac = np.mean(iterfac)
-        mds = np.mean([i**2 for i in diffs[3:6]]) # mean diffs squared
-        for i in range(3,6):
+        mds = np.mean([i**2 for i in diffs[3:5]]) # mean diffs squared
+        for i in range(3,5):
             a0[i] *= meanfac
         print("iterfac = {0}, mds = {1}".format(meanfac,mds))
         if mds/last_mds > 1.: #if the squared differences for outer planets don't decrease by at least 20%,quit
             print("Trying to jiggle a0")
             last_mds = 1.6
-            for i in range(3,6):
+            for i in range(3,5):
                 a0[i] += 1.
             iterctr += 1
             return initialize((mass,taue,k,a0,atarget,a_error,iterctr,last_mds,it,folder,dr_thresh)) # if you don't return, returns within function called recursively won't work!
@@ -271,7 +264,7 @@ def initialize(args):
         return initialize((mass,taue,k,a0,atarget,a_error,iterctr,last_mds,it,folder,dr_thresh)) # if you don't return, returns within function called recursively won't work!
         #google python return not working
     
-    a0s = [0.]*6
+    a0s = [0.]*rebound.get_N()
     rebound.set_t(0.)
     tmax = 1.e6
 
@@ -304,10 +297,10 @@ def main(argv,folder):
         elif opt in ("-t", "--taue"):
             taue = float(arg)
     
-    a0 = 71.
-    afac = 1.24
-    a0 = [0.,13.6,33.3,a0,a0*afac,a0*afac**2]    # AU
-    atarget = [0.,13.6,33.3,65.1,77.3,93.0]
+    a0 = 95.
+    afac = 1.45
+    a0 = [0.,13.6,33.3,a0,a0*afac]    # AU
+    atarget = [0.,13.6,33.3,71.2,93.0]
     a_error = 3
     iterctr = 0
     last_mds = 1.e6
@@ -318,17 +311,26 @@ def main(argv,folder):
     for it in range(24):
         args.append((mass,taue,k,a0,atarget,a_error,iterctr,last_mds,it,folder,dr_thresh))
     
-    pool = InterruptiblePool()
-    pool.map(initialize, args)
+    initialize(args[0])
+    #pool = InterruptiblePool()
+    #pool.map(initialize, args)
 
 if __name__ == "__main__":
-    folder = "5p"
+    folder = "4pres"
     try:
         os.mkdir(folder)
     except OSError:
         pass
     try:
         os.mkdir(folder+"/eos")
+    except OSError:
+        pass
+    try:
+        os.mkdir(folder+"/growprobs")
+    except OSError:
+        pass
+    try:
+        os.mkdir(folder+"/capinresprobs")
     except OSError:
         pass
 
