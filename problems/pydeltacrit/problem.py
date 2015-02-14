@@ -103,9 +103,8 @@ def main(argv):
     for it in range(24):
         args.append((Delta,nRH,j,it,dr_thresh,folder))
      
-    integrate(args[0]) 
-    #pool = InterruptiblePool()
-    #pool.map(integrate, args)
+    pool = InterruptiblePool()
+    pool.map(integrate, args)
 
 if __name__ == "__main__":
     main(sys.argv[1:])   
