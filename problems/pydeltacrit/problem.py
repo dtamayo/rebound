@@ -74,7 +74,7 @@ def integrate(args):
         if _t - tprev < dtthresh:
             break
     print(_t)
-    with open(folder + '/N_{0:3f}.txt'.format(nRH), mode='a') as f:
+    with open(folder + '/N_{0:3f}_Delta_{0:.5e}.txt'.format(nRH,Delta), mode='a') as f:
         f.write("{0:.4e}\t{1:.4e}\n".format(Delta,_t))
 
 def main(argv):
