@@ -7,8 +7,8 @@ Created on Oct 9, 2014
 import numpy as np
 from subprocess import call
 
-j = 2.
-nRH = 4.
+j = 3.
+nRH = 4.41
 numDeltas = 101 # choose odd number to include delta = 0
 
 daOveraRes = ((j+1)/j)**(2./3.) - 1.
