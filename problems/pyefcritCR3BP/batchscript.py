@@ -37,5 +37,6 @@ def runef(Delta):
     call("./sunnyscript", shell=True)
     
 if __name__ == '__main__':
-    Delta = 0.01
-    runef(Delta)
+    Deltas = [-0.1,-0.03,-0.01,-0.003, -0.001, 0.001, 0.003, 0.01, 0.03, 0.1]
+    for Delta in Deltas:
+        runef(Delta)
