@@ -53,7 +53,8 @@ def integrate(args):
     rebound.particle_add(sun)
 
     a0s = [0.,a1,a2,a3]
-
+    print(Delta,M, a0s)
+    exit()
     for a in a0s[1:]:
         p = pytools.kepler_particle(m=M,primary=sun,a=a,anom=random.uniform(0,2*math.pi),e=0.,omega=0.,inc=0.,Omega=0.)
         rebound.particle_add(p)
