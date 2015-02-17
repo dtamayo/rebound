@@ -93,7 +93,7 @@ def main(argv):
         elif opt in ("-j", "--j"):
             j = float(arg)
     
-    folder = "{0}to{1}".format(int(j+1), int(j))
+    folder = "ef{0}to{1}".format(int(j+1), int(j))
     try:
         os.mkdir(folder)
     except OSError:
