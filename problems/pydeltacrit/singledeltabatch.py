@@ -11,7 +11,7 @@ j = 2.
 numnRH = 30 
 Delta = 0.05
 
-nRHs = np.linspace(3.5, 4.5, numDeltas, endpoint=True)
+nRHs = np.linspace(3.5, 4.5, numnRH, endpoint=True)
 
 for nRH in nRHs:
     with open("nRH_{0:.3f}".format(nRH), "w") as of:
