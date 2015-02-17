@@ -29,7 +29,7 @@ def runef(Delta):
 
     with open("sunnyscript", "w") as of:
         of.write("#!/bin/bash\n")
-        for Delta in Deltas:
+        for ef in efs:
             of.write("qsub ef_{0:.5e}\n".format(ef))
         
         call("chmod u=rwx sunnyscript", shell=True)
