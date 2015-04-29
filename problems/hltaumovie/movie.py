@@ -1,6 +1,6 @@
 from PIL import Image
 
-file1 = 'movie/orb00160.png'
+file1 = 'hltau.png'
 file2 = '/Users/dtamayo/Desktop/orb00000.png'
 
 hltau = Image.open(file1)
@@ -10,13 +10,14 @@ w,h = hltau.size
 
 ncroptop = 0#125 
 ncropleft =0#125 
-hltaucrop = hltau.crop((ncropleft,ncroptop,w,h))
+#hltaucrop = hltau.crop((ncropleft,ncroptop,w,h))
 
 w,h = orbits.size
-w2,h2 = hltaucrop.size
+#w2,h2 = hltaucrop.size
 
-hltaucrop.thumbnail((w2,h2*h/w), Image.ANTIALIAS)
-
+hltau.resize((400,300),Image.ANTIALIAS)#(w2,h2*h/w), Image.ANTIALIAS)
+hltau.save("hltausmall.png", "PNG")
+exit()
 w,h = 600,600
 
 

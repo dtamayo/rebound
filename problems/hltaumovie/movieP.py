@@ -61,16 +61,22 @@ for i in range(3*FPS):
         for j in range(w):
             for k in range(h):
                 pixels[j,k] = (max(pixels[j,k][0],pixels2[j,k][0]), max(pixels[j,k][1],pixels2[j,k][1]), max(pixels[j,k][2],pixels2[j,k][2]))
-
-    img.save("movie/orb{0:05d}.png".format(ctr), "PNG")
+   
+    if i >= 48:
+        img.putalpha(int(255.-(i-48.)*255./23.))
+        fileO = 'resOrbits/orb{0:05d}.png'.format(i-48)
+        imgO = Image.open(fileO)
+        imgO.paste(img, (0,0), img)
+        img.save("movie/orb{0:05d}.png".format(ctr), "PNG")
+    else:
+        img.save("movie/orb{0:05d}.png".format(ctr), "PNG")
     ctr += 1
-'''
-for i in range(8*FPS):
-    file1 = 'resOrbits/orb{0:05d}.png'.format(i)
+
+for i in range(7*FPS):
+    file1 = 'resOrbits/orb{0:05d}.png'.format(i+24)
     img = Image.open(file1)
     img.save("movie/orb{0:05d}.png".format(ctr), "PNG")
     ctr += 1
-'''    
 os.system("ffmpeg -i movie/orb%05d.png -c:v libx264 -pix_fmt yuv420p test.mp4")
 os.system("open test.mp4")
 
