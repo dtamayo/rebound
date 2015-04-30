@@ -78,5 +78,5 @@ for i in range(7*FPS):
     img.save("movie/orb{0:05d}.png".format(ctr), "PNG")
     ctr += 1
 os.system("ffmpeg -i movie/orb%05d.png -c:v libx264 -pix_fmt yuv420p test.mp4")
-os.system("open test.mp4")
+os.system("open test.mp4")'''
 
