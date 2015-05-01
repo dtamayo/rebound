@@ -10,16 +10,14 @@ w,h = hltau.size
 
 ncroptop = 0#125 
 ncropleft =0#125 
-#hltaucrop = hltau.crop((ncropleft,ncroptop,w,h))
+hltaucrop = hltau.crop((ncropleft,ncroptop,w,h))
 
 w,h = orbits.size
-#w2,h2 = hltaucrop.size
+w2,h2 = hltaucrop.size
 
-hltau.resize((400,300),Image.ANTIALIAS)#(w2,h2*h/w), Image.ANTIALIAS)
+hltau.resize((w2,int(h2*h/w)), Image.ANTIALIAS)
 hltau.save("hltausmall.png", "PNG")
-exit()
-w,h = 600,600
-
+w,h = 550,550
 
 try:
     hltaucrop.thumbnail((w,h), Image.ANTIALIAS)
