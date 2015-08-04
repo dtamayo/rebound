@@ -45,6 +45,9 @@ int main(int argc, char* argv[]){
 	reb_add(r,p1);
 	reb_add(r,p2);
 
+	double tau_a[2] = {0., 1.e2};
+	set_migration(tau_a, 2);
+
 	reb_move_to_com(r);
 	
 	// Delete previous output

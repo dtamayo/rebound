@@ -266,7 +266,7 @@ class Particle(Structure):
             A rebound.Orbit object (with member variables for the orbital elements)
             """
         if primary is None:
-            primary = simulation.contents.particles[0]
+            primary = simulation.particles[0]
 
         o = Orbit()
         if primary.m <= TINY:
@@ -288,7 +288,7 @@ class Particle(Structure):
         dvz = self.vz - primary.vz
         v = math.sqrt ( dvx*dvx + dvy*dvy + dvz*dvz )
         
-        mu = simulation.contents.G*(self.m+primary.m)
+        mu = simulation.G*(self.m+primary.m)
         o.a = -mu/( v*v - 2.*mu/o.r )               # semi major axis
         
         h0 = (dy*dvz - dz*dvy)                      # angular momentum vector
