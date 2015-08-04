@@ -561,6 +561,7 @@ static void apply_corrector(struct reb_simulation* r, double inv){
 }
 
 void reb_integrator_whfast_part1(struct reb_simulation* const r){
+	//printf("part1: %f\t%f\n", r->t, r->particles[1].x);
 	struct reb_simulation_integrator_whfast* const ri_whfast = &(r->ri_whfast);
 	struct reb_particle* restrict const particles = r->particles;
 	const int N = r->N;
@@ -648,6 +649,7 @@ void reb_integrator_whfast_synchronize(struct reb_simulation* const r){
 }
 
 void reb_integrator_whfast_part2(struct reb_simulation* const r){
+	//printf("part2: %f\t%f\n", r->t, r->particles[1].x);
 	struct reb_particle* restrict const particles = r->particles;
 	struct reb_simulation_integrator_whfast* const ri_whfast = &(r->ri_whfast);
 	const int N = r->N;

@@ -16,22 +16,22 @@
 
 void heartbeat(struct reb_simulation* const r);
 
-double tmax = 40.;
+double tmax = 1.e4;
 
 int main(int argc, char* argv[]){
 	struct reb_simulation* r = reb_create_simulation();
 	// Setup constants
-	r->dt 			= 1e-4;		// initial timestep.
+	r->dt 			= 1e-2;		// initial timestep.
 	r->integrator	= REB_INTEGRATOR_WHFAST;
 
 	// Setup callback function for velocity dependent forces.
-	r->additional_forces 	= reboundxf_forces;
+	r->post_timestep_modifications 	= reboundxf_modify_elements;
 	r->force_is_velocity_dependent = 1;
 	// Setup callback function for outputs.
 	r->heartbeat	= heartbeat;
 	//r->usleep		= 1;		// Slow down integration (for visualization only)
 
-	double tmax = 1.e4;
+	printf("%d\n", r->ri_whfast.safe_mode);
 	double e0 = 0.1;
 	double ainner = 1.;
 	double aouter = 10.;
@@ -45,8 +45,8 @@ int main(int argc, char* argv[]){
 	reb_add(r,p1);
 	reb_add(r,p2);
 
-	double tau_a[2] = {0., 1.e2};
-	set_migration(tau_a, 2);
+	double tau_a[3] = {0., 1.e3, 1.e3};
+	set_migration(tau_a, 3);
 
 	reb_move_to_com(r);
 	
@@ -60,11 +60,14 @@ int main(int argc, char* argv[]){
 void heartbeat(struct reb_simulation* const r){
 	// Output some information to the screen every 100th timestep
 	if(reb_output_check(r, 100.*r->dt)){
-		reb_output_timing(r, tmax);
+		struct reb_orbit o1 = reb_tools_p2orbit(r->G, r->particles[1], r->particles[0]);
+		struct reb_orbit o2 = reb_tools_p2orbit(r->G, r->particles[2], r->particles[0]);
+		printf("%f\t%f\t%f\n", r->t, o1.a, o2.a);
+		//reb_output_timing(r, tmax);
 	}
 	// Output the particle position to a file every timestep.
-	const struct reb_particle* const particles = r->particles;
+	/*const struct reb_particle* const particles = r->particles;
 	FILE* f = fopen("r.txt","a");
 	fprintf(f,"%e\t%e\t%e\n",r->t,particles[0].x, particles[1].vx);
-	fclose(f);
+	fclose(f);*/
 }

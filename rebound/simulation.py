@@ -168,6 +168,7 @@ class Simulation(object):
         
     
     AFF = CFUNCTYPE(None)
+    PTMF = CFUNCTYPE(None)
     afp = None # additional forces pointer
     ptmp = None # post timestep modifications pointer 
     _units = {'length':None, 'time':None, 'mass':None}
@@ -204,7 +205,7 @@ class Simulation(object):
     def additional_forces(self, func):
         if(isinstance(func,types.FunctionType)):
             # Python function pointer
-            self.AFF = CFUNCTYPE(None,POINTER(reb_simulation))
+            self.AFF = CFUNCTYPE(None, POINTER(reb_simulation))
             self.afp = self.AFF(func)
             self.simulation.contents.additional_forces = self.afp
         else:
@@ -218,14 +219,21 @@ class Simulation(object):
 
     @post_timestep_modifications.setter
     def post_timestep_modifications(self, func):
-        if(isinstance(func, types.FunctionType)):
+        self.PTMF = CFUNCTYPE(None, POINTER(reb_simulation))
+        self.ptmp = self.PTMF(func)
+        self.simulation.contents.post_timestep_modifications = self.ptmp
+        '''if(isinstance(func, types.FunctionType)):
             # Python function pointer
-            self.ptmp = self.AFF(func)
+            self.PTMF = CFUNCTYPE(None, POINTER(reb_simulation))
+            self.ptmp = self.PTMF(func)
             self.simulation.contents.post_timestep_modifications = self.ptmp
+            print("there")
         else:
             # C function pointer
-            self.simulation.contents.post_timestep_modifications_with_parameters = func
+            print("here")
+            self.simulation.contents.post_timestep_modifications = func
             self.ptmp = "C function pointer value currently not accessible from python.  Edit simulation.py" 
+        '''
 
 # Setter/getter of parameters and constants
     @property
@@ -380,7 +388,7 @@ class Simulation(object):
                 self.add(horizons.getParticle(particle,**kwargs))
                 units_convert_particle(self.particles[-1], 'km', 's', 'kg', self._units['length'], self._units['time'], self._units['mass'])
         else: 
-            self.add(Particle(simulation=self.simulation, **kwargs))
+            self.add(Particle(simulation=self, **kwargs))
 
 # Particle getter functions
     @property
@@ -441,7 +449,7 @@ class Simulation(object):
                 com = _particles[0]
             else:
                 com = self.calculate_com(i)
-            orbits.append(_particles[i].calculate_orbit(self.simulation, primary=com))
+            orbits.append(_particles[i].calculate_orbit(self, primary=com))
         return orbits
 
 # COM calculation 
