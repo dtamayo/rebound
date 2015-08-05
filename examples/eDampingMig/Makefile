@@ -1,3 +1,4 @@
+export OPENGL=1
 include ../../src/Makefile.defs
 
 REBOUNDXFDIR=../../../reboundxf/cext/
