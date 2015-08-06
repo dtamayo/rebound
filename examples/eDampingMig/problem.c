@@ -24,14 +24,6 @@ int main(int argc, char* argv[]){
 	r->dt 			= 0.012;		// initial timestep.
 	r->integrator	= REB_INTEGRATOR_WHFAST;
 
-	// Setup callback function for velocity dependent forces.
-	//r->post_timestep_modifications 	= reboundxf_modify_elements;
-	r->force_is_velocity_dependent = 1;
-	r-> G = 4*M_PI*M_PI;
-	// Setup callback function for outputs.
-	r->heartbeat	= heartbeat;
-	//r->usleep		= 1;		// Slow down integration (for visualization only)
-
 	struct reb_particle p; 
 	p.m  	= 1.;	
 	reb_add(r, p); 
@@ -41,15 +33,24 @@ int main(int argc, char* argv[]){
 	reb_add(r,p1);
 	reb_add(r,p2);
 
-	double tau_e[3] = {0.,1.e5,100.};
-	double tau_a[3] = {0., 1.e10, 1.e7};
-	double tau_po[3] = {0.,1.e5,100.};
+	struct rebxf_params* xf = rebxf_addxf(r);
 
-	/*reboundxf_set_migration(tau_a, 3);
-	reboundxf_set_e_damping_p(1.);
-	reboundxf_set_e_damping(tau_e,3);
-	reboundxf_set_peri_precession(tau_po,3);
-	*/
+	xf->tau_a[1] = 1.e10;
+	xf->tau_a[2] = 1.e7;
+	xf->tau_e[1] = 1.e5;
+	xf->tau_e[2] = 100.;
+	xf->tau_po[1] = 1.e5;
+	xf->tau_po[2] = 100.;
+	xf->e_damping_p = 1.;
+
+	// Setup callback function for velocity dependent forces.
+	r->post_timestep_modifications 	= rebxf_modify_elements(xf);
+	//r->force_is_velocity_dependent = 1;
+	r-> G = 4*M_PI*M_PI;
+	// Setup callback function for outputs.
+	r->heartbeat	= heartbeat;
+	//r->usleep		= 1;		// Slow down integration (for visualization only)
+
 	reb_move_to_com(r);
 
 	// Delete previous output
@@ -64,7 +65,7 @@ void heartbeat(struct reb_simulation* const r){
 	if(reb_output_check(r, 100.*r->dt)){
 		struct reb_orbit o1 = reb_tools_p2orbit(r->G, r->particles[1], r->particles[0]);
 		struct reb_orbit o2 = reb_tools_p2orbit(r->G, r->particles[2], r->particles[0]);
-		printf("%f\t%f\t%f\n", r->t, o1.a, o2.a);
+		//printf("%f\t%f\t%f\n", r->t, o1.a, o2.a);
 		//reb_output_timing(r, tmax);
 	}
 	// Output the particle position to a file every timestep.

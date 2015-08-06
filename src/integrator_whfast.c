@@ -399,6 +399,8 @@ static void to_inertial_posvel(struct reb_particle* const particles, const struc
 }
 
 static void to_inertial_pos(struct reb_particle* const particles, const struct reb_particle* const p_j, const double* const eta, const int N){
+    printf("%f\n", particles[1].x);
+	printf("etai %f\t%f\t%f\n", p_j[0], p_j[1], p_j[2]);	
 	const double Mtotal  = eta[N-1];
 	double s_x  = p_j[0].x  * Mtotal; 
 	double s_y  = p_j[0].y  * Mtotal; 
@@ -420,6 +422,8 @@ static void to_inertial_pos(struct reb_particle* const particles, const struct r
 	particles[0].x  = s_x  * mi;
 	particles[0].y  = s_y  * mi;
 	particles[0].z  = s_z  * mi;
+    printf("%f\n", particles[1].x);
+
 }
 
 /***************************** 
@@ -561,7 +565,6 @@ static void apply_corrector(struct reb_simulation* r, double inv){
 }
 
 void reb_integrator_whfast_part1(struct reb_simulation* const r){
-	//printf("part1: %f\t%f\n", r->t, r->particles[1].x);
 	struct reb_simulation_integrator_whfast* const ri_whfast = &(r->ri_whfast);
 	struct reb_particle* restrict const particles = r->particles;
 	const int N = r->N;
@@ -597,23 +600,39 @@ void reb_integrator_whfast_part1(struct reb_simulation* const r){
 		if (N_var){
 			to_jacobi_posvel(particles+N_var, ri_whfast->p_j+N_var, ri_whfast->eta, N_real);
 		}
+		printf("pj%f\n", ri_whfast->p_j[1].x);
+
 	}
+
 	double _dt2 = r->dt/2.;
 	if (ri_whfast->is_synchronized){
 		// First half DRIFT step
 		if (ri_whfast->corrector){
 			apply_corrector(r, 1.);
 		}
+		printf("pj%f\n", ri_whfast->p_j[1].x);
+		
 		kepler_drift(ri_whfast->p_j, ri_whfast->eta, r->G, _dt2, &(ri_whfast->timestep_warning), N, N_var);	// half timestep
+		printf("pj%f\n", ri_whfast->p_j[1].x);
+
 	}else{
 		// Combined DRIFT step
 		kepler_drift(ri_whfast->p_j, ri_whfast->eta, r->G, r->dt, &(ri_whfast->timestep_warning), N, N_var);	// full timestep
 	}
+
 	// Prepare coordinates for KICK step
 	if (r->force_is_velocity_dependent){
+		printf("part1: %f\t%f\n", r->t, r->particles[1].x);
 		to_inertial_posvel(particles, ri_whfast->p_j, ri_whfast->eta, N_real);
+		printf("part1: %f\t%f\n", r->t, r->particles[1].x);
+		//exit(1);
 	}else{
+		printf("part1: %f\t%f\n", r->t, r->particles[1].x);
+		printf("pj%f\n", ri_whfast->p_j[1].x);
 		to_inertial_pos(particles, ri_whfast->p_j, ri_whfast->eta, N_real);
+		printf("pj%f\n", ri_whfast->p_j[1].x);
+		printf("part1: %f\t%f\n", r->t, r->particles[1].x);
+		//exit(1);
 	}
 	
 	if (N_var){
