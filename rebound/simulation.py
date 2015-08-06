@@ -150,6 +150,7 @@ reb_simulation._fields_ = [("t", c_double),
                 ("heartbeat", CFUNCTYPE(None,POINTER(reb_simulation))),
                 ("coefficient_of_restitution", CFUNCTYPE(c_double,POINTER(reb_simulation), c_double)),
                 ("collisions_resolve", CFUNCTYPE(None,POINTER(reb_simulation), c_void_p)),
+                ("xf_params", c_void_p)
                  ]
 
 

@@ -484,6 +484,16 @@ struct reb_simulation {
 	 */
 	void (*collision_resolve) (struct reb_simulation* const r, struct reb_collision);
 	/** @} */
+
+	/**
+	 * \name Hooks for external libraries
+	 * @{
+	 */
+	/**
+	 * @brief Pointer to parameters for (optional) extra forces from the reboundxf library
+	 */
+	void* xf_params;
+	/** @} */
 	
 };
 

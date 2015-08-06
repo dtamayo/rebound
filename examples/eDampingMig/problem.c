@@ -23,6 +23,7 @@ int main(int argc, char* argv[]){
 	// Setup constants
 	r->dt 			= 0.012;		// initial timestep.
 	r->integrator	= REB_INTEGRATOR_WHFAST;
+	r-> G = 4*M_PI*M_PI;
 
 	struct reb_particle p; 
 	p.m  	= 1.;	
@@ -33,20 +34,24 @@ int main(int argc, char* argv[]){
 	reb_add(r,p1);
 	reb_add(r,p2);
 
+	struct reb_particle com = reb_get_com(r);
+	struct reb_orbit o = reb_tools_p2orbit(r->G, r->particles[2], com); 
+	printf("%f\t%f\t%f\t%f\t%f\t%f\n", o.a, o.e, o.inc, o.Omega, o.omega, o.f); 
+	//exit(1);
 	struct rebxf_params* xf = rebxf_addxf(r);
 
-	xf->tau_a[1] = 1.e10;
-	xf->tau_a[2] = 1.e7;
-	xf->tau_e[1] = 1.e5;
-	xf->tau_e[2] = 100.;
-	xf->tau_po[1] = 1.e5;
+	xf->tau_a[1] = 0.;//1.e10;
+	xf->tau_a[2] = 0.;//1.e7;
+	xf->tau_e[1] = 0.;//1.e5;
+	xf->tau_e[2] = 0.;//100.;
+	xf->tau_po[1] = 0.;//1.e5;
 	xf->tau_po[2] = 100.;
 	xf->e_damping_p = 1.;
 
 	// Setup callback function for velocity dependent forces.
-	r->post_timestep_modifications 	= rebxf_modify_elements(xf);
+	//r->post_timestep_modifications 	= rebxf_modify_elements;
+	
 	//r->force_is_velocity_dependent = 1;
-	r-> G = 4*M_PI*M_PI;
 	// Setup callback function for outputs.
 	r->heartbeat	= heartbeat;
 	//r->usleep		= 1;		// Slow down integration (for visualization only)
