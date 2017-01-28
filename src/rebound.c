@@ -338,6 +338,7 @@ void reb_reset_temporary_pointers(struct reb_simulation* const r){
     // ********** JANUS
     r->ri_janus.allocated_N = 0;
     r->ri_janus.p_prev = NULL;
+    r->ri_janus.p_prevrecalc = NULL;
     r->ri_janus.p_curr = NULL;
 }
 
@@ -347,6 +348,7 @@ int reb_reset_function_pointers(struct reb_simulation* const r){
         r->collision_resolve ||
         r->additional_forces ||
         r->heartbeat ||
+        r->display_heartbeat ||
         r->post_timestep_modifications ||
         r->free_particle_ap){
       wasnotnull = 1;
@@ -355,6 +357,7 @@ int reb_reset_function_pointers(struct reb_simulation* const r){
     r->collision_resolve        = NULL;
     r->additional_forces        = NULL;
     r->heartbeat            = NULL;
+    r->display_heartbeat    = NULL; 
     r->post_timestep_modifications  = NULL;
     r->free_particle_ap = NULL;
     return wasnotnull;
