@@ -1273,6 +1273,33 @@ struct reb_particle reb_get_com_range(struct reb_simulation* r, int first, int l
  */
 
 struct reb_particle reb_get_jacobi_com(struct reb_particle* p);
+
+/**
+ * @brief Manually execute only the kepler step of WHFast for a timestep dt.
+ * @details This is mainly for testing/exploration purposes. Need to update the simulation time manually when using these manual functions. Use reb_step() to execute a full step.
+ * @param r A pointer to the simulation structure.
+ * @param dt Timestep to use.
+ * */
+
+void reb_integrator_whfast_manual_kepler_step(struct reb_simulation* const r, const double dt);
+
+/**
+ * @brief Manually execute only the jump step of WHFast for a timestep dt.
+ * @details This is mainly for testing/exploration purposes. Need to update the simulation time manually when using these manual functions. Use reb_step() to execute a full step.
+ * @param r A pointer to the simulation structure.
+ * @param dt Timestep to use.
+ * */
+
+void reb_integrator_whfast_manual_jump_step(struct reb_simulation* const r, const double dt);
+
+/**
+ * @brief Manually execute only the interaction step of WHFast for a timestep dt.
+ * @details This is mainly for testing/exploration purposes. Need to update the simulation time manually when using these manual functions. Use reb_step() to execute a full step.
+ * @param r A pointer to the simulation structure.
+ * @param dt Timestep to use.
+ * */
+void reb_integrator_whfast_manual_interaction_step(struct reb_simulation* const r, const double dt);
+
 /** @} */
 
 /**

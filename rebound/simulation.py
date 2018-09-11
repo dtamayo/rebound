@@ -1402,6 +1402,24 @@ class Simulation(Structure):
         Call this function to update the tree structure manually after removing particles.
         """
         clibrebound.reb_tree_update(byref(self))
+
+    def kepler_step(self, dt):
+        """
+        Execute only the kepler step of WHFast for a timestep dt. This is a manual function mainly used for testing/exploration, and you must update the simulation time manually when using it. Use sim.step() to perform a full step with whatever integrator is selected.
+        """
+        clibrebound.reb_integrator_whfast_manual_kepler_step(byref(self), c_double(dt))
+
+    def jump_step(self, dt):
+        """
+        Execute only the jump step of WHFast for a timestep dt. This is a manual function mainly used for testing/exploration, and you must update the simulation time manually when using it. Use sim.step() to perform a full step with whatever integrator is selected.
+        """
+        clibrebound.reb_integrator_whfast_manual_jump_step(byref(self), c_double(dt))
+    
+    def interaction_step(self, dt):
+        """
+        Execute only the interaction step of WHFast for a timestep dt. This is a manual function mainly used for testing/exploration, and you must update the simulation time manually when using it. Use sim.step() to perform a full step with whatever integrator is selected.
+        """
+        clibrebound.reb_integrator_whfast_manual_interaction_step(byref(self), c_double(dt))
     
 class Variation(Structure):
     """
