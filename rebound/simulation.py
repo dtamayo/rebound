@@ -1421,6 +1421,12 @@ class Simulation(Structure):
         """
         clibrebound.reb_integrator_whfast_manual_interaction_step(byref(self), c_double(dt))
     
+    def integrator_reset(self):
+        """
+        Reset temporarly stored integrator values.
+        """ 
+        clibrebound.reb_integrator_reset(byref(self))
+    
 class Variation(Structure):
     """
     REBOUND Variational Configuration Object.

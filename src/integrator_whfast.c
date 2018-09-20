@@ -635,14 +635,16 @@ void reb_integrator_whfast_manual_interaction_step(struct reb_simulation* const 
     const int N = r->N;
     const int N_real = N-r->N_var;
     const int N_active = r->N_active==-1?r->N:r->N_active;
+    if (ri_whfast->allocated_N != N){
+        ri_whfast->allocated_N = N;
+        ri_whfast->p_jh = realloc(ri_whfast->p_jh,sizeof(struct reb_particle)*N);
+    }
     if (ri_whfast->coordinates==REB_WHFAST_COORDINATES_JACOBI){
         r->gravity_ignore_terms = 1;
     }else{
         r->gravity_ignore_terms = 2;
     }
-    reb_calculate_acceleration(r);
-    if (r->additional_forces) r->additional_forces(r);
-    /*switch (ri_whfast->coordinates){
+    switch (ri_whfast->coordinates){
         case REB_WHFAST_COORDINATES_JACOBI:
             reb_transformations_inertial_to_jacobi_posvel(particles, ri_whfast->p_jh, particles, N_real);
             break;
@@ -652,7 +654,9 @@ void reb_integrator_whfast_manual_interaction_step(struct reb_simulation* const 
         case REB_WHFAST_COORDINATES_WHDS:
             reb_transformations_inertial_to_whds_posvel(particles, ri_whfast->p_jh, N_real);
             break;
-    };*/
+    };
+    reb_calculate_acceleration(r);
+    if (r->additional_forces) r->additional_forces(r);
     reb_whfast_interaction_step(r, dt);
     switch (ri_whfast->coordinates){
         case REB_WHFAST_COORDINATES_JACOBI:
