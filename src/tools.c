@@ -109,6 +109,30 @@ struct reb_vec3d reb_tools_angular_momentum(const struct reb_simulation* const r
 	return L;
 }
 
+void reb_move_to_hel(struct reb_simulation* const r){
+    const int N_real = r->N - r->N_var;
+    if (N_real>0){
+	    struct reb_particle* restrict const particles = r->particles;
+        struct reb_particle hel = r->particles[0];
+        // Note: Variational particles will not be affected.
+        for (int i=1;i<N_real;i++){
+            particles[i].x  -= hel.x;
+            particles[i].y  -= hel.y;
+            particles[i].z  -= hel.z;
+            particles[i].vx -= hel.vx;
+            particles[i].vy -= hel.vy;
+            particles[i].vz -= hel.vz;
+        }
+        r->particles[0].x = 0.;
+        r->particles[0].y = 0.;
+        r->particles[0].z = 0.;
+        r->particles[0].vx = 0.;
+        r->particles[0].vy = 0.;
+        r->particles[0].vz = 0.;
+    }
+}
+
+
 void reb_move_to_com(struct reb_simulation* const r){
     const int N_real = r->N - r->N_var;
 	struct reb_particle* restrict const particles = r->particles;
@@ -275,7 +299,7 @@ void reb_move_to_com(struct reb_simulation* const r){
 	}
 }
 
-void reb_serialize_particle_data(struct reb_simulation* r, uint32_t* hash, double* m, double* radius, double (*xyz)[3], double (*vxvyvz)[3]){
+void reb_serialize_particle_data(struct reb_simulation* r, uint32_t* hash, double* m, double* radius, double (*xyz)[3], double (*vxvyvz)[3], double (*xyzvxvyvz)[6]){
     const int N_real = r->N - r->N_var;
     struct reb_particle* restrict const particles = r->particles;
     for (int i=0;i<N_real;i++){
@@ -297,6 +321,48 @@ void reb_serialize_particle_data(struct reb_simulation* r, uint32_t* hash, doubl
             vxvyvz[i][0] = particles[i].vx;
             vxvyvz[i][1] = particles[i].vy;
             vxvyvz[i][2] = particles[i].vz;
+        }
+        if (xyzvxvyvz){
+            xyzvxvyvz[i][0] = particles[i].x;
+            xyzvxvyvz[i][1] = particles[i].y;
+            xyzvxvyvz[i][2] = particles[i].z;
+            xyzvxvyvz[i][3] = particles[i].vx;
+            xyzvxvyvz[i][4] = particles[i].vy;
+            xyzvxvyvz[i][5] = particles[i].vz;
+        }
+    }
+}
+
+void reb_set_serialized_particle_data(struct reb_simulation* r, uint32_t* hash, double* m, double* radius, double (*xyz)[3], double (*vxvyvz)[3], double (*xyzvxvyvz)[6]){
+    const int N_real = r->N - r->N_var;
+    struct reb_particle* restrict const particles = r->particles;
+    for (int i=0;i<N_real;i++){
+        if (hash){
+           particles[i].hash = hash[i];
+        }
+        if (m){
+            particles[i].m = m[i];
+        }
+        if (radius){
+            particles[i].r = radius[i] ;
+        }
+        if (xyz){
+            particles[i].x = xyz[i][0];
+            particles[i].y = xyz[i][1];
+            particles[i].z = xyz[i][2];
+        }
+        if (vxvyvz){
+            particles[i].vx = vxvyvz[i][0];
+            particles[i].vy = vxvyvz[i][1];
+            particles[i].vz = vxvyvz[i][2];
+        }
+        if (xyzvxvyvz){
+            particles[i].x = xyzvxvyvz[i][0];
+            particles[i].y = xyzvxvyvz[i][1];
+            particles[i].z = xyzvxvyvz[i][2];
+            particles[i].vx = xyzvxvyvz[i][3];
+            particles[i].vy = xyzvxvyvz[i][4];
+            particles[i].vz = xyzvxvyvz[i][5];
         }
     }
 }
@@ -415,10 +481,10 @@ void reb_tools_init_plummer(struct reb_simulation* r, int _N, double M, double R
 
 static double mod2pi(double f){
 	while(f < 0.){
-		f += 2*M_PI;
+		f += 2.*M_PI;
 	}
-	while(f > 0.){
-		f -= 2*M_PI;
+	while(f > 2.*M_PI){
+		f -= 2.*M_PI;
 	}
 	return f;
 }
@@ -426,6 +492,7 @@ static double mod2pi(double f){
 double reb_tools_M_to_E(double e, double M){
 	double E;
 	if(e < 1.){
+        M = mod2pi(M); // avoid numerical artefacts for negative numbers
 		E = e < 0.8 ? M : M_PI;
 		double F = E - e*sin(E) - M;
 		for(int i=0; i<100; i++){
@@ -469,6 +536,8 @@ struct reb_particle reb_tools_orbit2d_to_particle(double G, struct reb_particle 
 	return reb_tools_orbit_to_particle(G, primary, m, a, e, inc, Omega, omega, f);
 }
 
+#define TINY 1.E-308 		///< Close to smallest representable floating point number, used for orbit calculation
+
 struct reb_particle reb_tools_orbit_to_particle_err(double G, struct reb_particle primary, double m, double a, double e, double inc, double Omega, double omega, double f, int* err){
 	if(e == 1.){
 		*err = 1; 		// Can't initialize a radial orbit with orbital elements.
@@ -494,6 +563,10 @@ struct reb_particle reb_tools_orbit_to_particle_err(double G, struct reb_particl
 		*err = 5;		// Unbound orbit can't have f set beyond the range allowed by the asymptotes set by the parabola.
 		return reb_particle_nan();
 	}
+    if(primary.m < TINY){
+        *err = 6;       // Primary has no mass.
+        return reb_particle_nan();
+    }
 
 	struct reb_particle p = {0};
 	p.m = m;
@@ -547,15 +620,17 @@ struct reb_orbit reb_orbit_nan(void){
     o.l = nan("");
     o.theta = nan("");
     o.T = nan("");
+    o.rhill = nan("");
 
     return o;
 }
 
 #define MIN_REL_ERROR 1.0e-12	///< Close to smallest relative floating point number, used for orbit calculation
-#define TINY 1.E-308 		///< Close to smallest representable floating point number, used for orbit calculation
 #define MIN_INC 1.e-8		///< Below this inclination, the broken angles pomega and theta equal the corresponding 
 							///< unbroken angles to within machine precision, so a practical boundary for planar orbits
 							//
+#define MIN_ECC 1.e-8       ///< Below this eccentricity, corrections at order e^2 are below machine precision, so we use
+                            ///< stable expressions accurate to O(e) for the mean longitude below for near-circular orbits.
 // returns acos(num/denom), using disambiguator to tell which quadrant to return.  
 // will return 0 or pi appropriately if num is larger than denom by machine precision
 // and will return 0 if denom is exactly 0.
@@ -596,6 +671,8 @@ struct reb_orbit reb_tools_particle_to_orbit_err(double G, struct reb_particle p
 	o.v = sqrt(vsquared);
 	vcircsquared = mu/o.d;	
 	o.a = -mu/( vsquared - 2.*vcircsquared );	// semi major axis
+    
+    o.rhill = o.a*cbrt(p.m/(3.*primary.m));
 	
 	hx = (dy*dvz - dz*dvy); 					//angular momentum vector
 	hy = (dz*dvx - dx*dvz);
@@ -643,18 +720,30 @@ struct reb_orbit reb_tools_particle_to_orbit_err(double G, struct reb_particle p
 	// in the near-planar case, the true longitude is always well defined for the position, and pomega for the pericenter if e!= 0
 	// we therefore calculate those and calculate the remaining angles from them
 	if(o.inc < MIN_INC || o.inc > M_PI - MIN_INC){	// nearly planar.  Use longitudes rather than angles referenced to node for numerical stability.
-		o.pomega = acos2(ex, o.e, ey);		// cos pomega is dot product of x and e unit vectors.  Will = 0 if e=0.
-		o.theta = acos2(dx, o.d, dy);		// cos theta is dot product of x and r vectors (true longitude).  Will = 0 if e = 0.
+		o.theta = acos2(dx, o.d, dy);		// cos theta is dot product of x and r vectors (true longitude). 
+        o.pomega = acos2(ex, o.e, ey);		// cos pomega is dot product of x and e unit vectors.  Will = 0 if e=0.
+
 		if(o.inc < M_PI/2.){
 			o.omega = o.pomega - o.Omega;
 			o.f = o.theta - o.pomega;
-			o.l = o.pomega + o.M;
+            if(o.e > MIN_ECC){              // pomega well defined
+			    o.l = o.pomega + o.M;
+            }
+            else{                           // when e << 1 and pomega ill defined, use l = theta+(M-f). M-f is O(e) so well behaved
+                o.l = o.theta - 2.*o.e*sin(o.f); // M-f from Murray & Dermott Eq 2.93. This way l->theta smoothly as e->0
+            }
 		}
 		else{
 			o.omega = o.Omega - o.pomega;
 			o.f = o.pomega - o.theta;
-			o.l = o.pomega - o.M;
+            if(o.e > MIN_ECC){              // pomega well defined
+			    o.l = o.pomega - o.M;
+            }
+            else{                           // when e << 1 and pomega ill defined, use l = theta+(M-f). M-f is O(e) so well behaved
+                o.l = o.theta + 2.*o.e*sin(o.f); // M-f from Murray & Dermott Eq 2.93 (retrograde changes sign). This way l->theta smoothly as e->0
+            }
 		}
+	    
 	}
 	// in the non-planar case, we can't calculate the broken angles from vectors like above.  omega+f is always well defined, and omega if e!=0
 	else{
@@ -664,13 +753,23 @@ struct reb_orbit reb_tools_particle_to_orbit_err(double G, struct reb_particle p
 			o.pomega = o.Omega + o.omega;
 			o.f = wpf - o.omega;
 			o.theta = o.Omega + wpf;
-			o.l = o.pomega + o.M;
+            if(o.e > MIN_ECC){              // pomega well defined
+			    o.l = o.pomega + o.M;
+            }
+            else{                           // when e << 1 and pomega ill defined, use l = theta+(M-f). M-f is O(e) so well behaved
+                o.l = o.theta - 2.*o.e*sin(o.f); // M-f from Murray & Dermott Eq 2.93. This way l->theta smoothly as e->0
+            }
 		}
 		else{
 			o.pomega = o.Omega - o.omega;
 			o.f = wpf - o.omega;
 			o.theta = o.Omega - wpf;
-			o.l = o.pomega - o.M;
+            if(o.e > MIN_ECC){              // pomega well defined
+			    o.l = o.pomega - o.M;
+            }
+            else{                           // when e << 1 and pomega ill defined, use l = theta+(M-f). M-f is O(e) so well behaved
+                o.l = o.theta + 2.*o.e*sin(o.f); // M-f from Murray & Dermott Eq 2.93 (retrograde changes sign). This way l->theta smoothly as e->0
+            }
 		}
 	}
     

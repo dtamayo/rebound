@@ -24,6 +24,7 @@ The following examples are good if you're just starting to use REBOUND.
    c_example_eccentric_orbit
    c_example_restricted_threebody
    ipython/Horizons
+   ipython/Starman
 
 If you want to capture close encounters and collisions between particles, have a look at the following examples.
 
@@ -41,7 +42,6 @@ The following examples demonstrate how to calculate orbital elements.
    ipython/OrbitalElements
    
 If you are interested in simulating a planetary system in which there are many small particles, have a look at the following examples. 
-All these examples use the HERMES integrator.
 
 .. toctree::
    c_example_planetesimal_disk_migration

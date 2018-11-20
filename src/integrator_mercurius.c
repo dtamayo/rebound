@@ -96,6 +96,7 @@ static void reb_mercurius_encounterstep(struct reb_simulation* const r, const do
             rim->encounterParticles[r->N].r = r->particles[i].r;
             rim->encounterParticles[r->N].ap = r->particles[i].ap;
             rim->encounterParticles[r->N].hash = r->particles[i].hash;
+            rim->encounterParticles[r->N].lastcollision = r->particles[i].lastcollision;
             rim->encounterRhill[r->N] = rim->rhill[i];
             r->N++;
             if (i<rim->globalNactive){
@@ -142,6 +143,14 @@ static void reb_mercurius_encounterstep(struct reb_simulation* const r, const do
     for (int i=0; i<rim->globalN; i++){
         if(rim->encounterIndicies[i]>0){
             riw->p_jh[i] = r->particles[k];
+            // In case properties changed in a collision
+            rim->encounterParticles[i].r = r->particles[k].r;
+            rim->encounterParticles[i].ap = r->particles[k].ap;
+            rim->encounterParticles[i].hash = r->particles[k].hash;
+            rim->encounterParticles[i].lastcollision = r->particles[k].lastcollision;
+            // Mass update is more complicated as it is in part done by the transformations.
+            // Commenting this out for now.
+            //rim->encounterParticles[i].m = r->particles[k].m;
             k++;
         }
     }
@@ -204,7 +213,7 @@ static void reb_mercurius_predict_encounters(struct reb_simulation* const r){
             double rmin = MIN(rn,ro);
 
             const double s = b*b-4.*a*c;
-            const double sr = sqrt(s);
+            const double sr = sqrt(MAX(0.,s));
             const double tmin1 = (-b + sr)/(2.*a); 
             const double tmin2 = (-b - sr)/(2.*a); 
             if (tmin1>0. && tmin1<1.){
@@ -290,6 +299,7 @@ void reb_integrator_mercurius_part1(struct reb_simulation* r){
             reb_integrator_mercurius_synchronize(r);
             reb_warning(r,"MERCURIUS: Recalculating rhill but pos/vel were not synchronized before.");
         }
+        rim->rhill[0] = 0; // Unsused
         for (int i=1;i<N;i++){
             const double dx  = riw->p_jh[i].x;
             const double dy  = riw->p_jh[i].y;

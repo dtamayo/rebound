@@ -25,10 +25,35 @@
 
 #ifndef _MAIN_H
 #define _MAIN_H
+
+#ifdef __cplusplus
+
+// At least GCC and clang support the restrict keyword as an extension.
+#if defined(__GNUC__) || defined(__clang__)
+
+#define REBOUND_RESTRICT __restrict__
+
+#else
+
+// For other compilers, we disable it.
+#define REBOUND_RESTRICT
+
+#endif
+
+extern "C" {
+
+#else
+
+#define REBOUND_RESTRICT restrict
+
+#endif
+
+#include <inttypes.h>
 #include <stdint.h>
 #include <sys/time.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdio.h>
 #ifndef M_PI
 // Make sure M_PI is defined. 
 #define M_PI           3.14159265358979323846       ///< The mathematical constant pi.
@@ -63,13 +88,13 @@ struct reb_vec3d {
  * @brief Generic 7d pointer, for internal use only (IAS15).
  */
 struct reb_dp7 {
-    double* restrict p0; ///< 0 substep
-    double* restrict p1; ///< 1 substep
-    double* restrict p2; ///< 2 substep
-    double* restrict p3; ///< 3 substep
-    double* restrict p4; ///< 4 substep
-    double* restrict p5; ///< 5 substep
-    double* restrict p6; ///< 6 substep
+    double* REBOUND_RESTRICT p0; ///< 0 substep
+    double* REBOUND_RESTRICT p1; ///< 1 substep
+    double* REBOUND_RESTRICT p2; ///< 2 substep
+    double* REBOUND_RESTRICT p3; ///< 3 substep
+    double* REBOUND_RESTRICT p4; ///< 4 substep
+    double* REBOUND_RESTRICT p5; ///< 5 substep
+    double* REBOUND_RESTRICT p6; ///< 6 substep
 };
 
 /**
@@ -131,13 +156,13 @@ struct reb_simulation_integrator_ias15 {
 
     int allocatedN;             ///< Size of allocated arrays.
 
-    double* restrict at;            ///< Temporary buffer for acceleration
-    double* restrict x0;            ///<                      position (used for initial values at h=0) 
-    double* restrict v0;            ///<                      velocity
-    double* restrict a0;            ///<                      acceleration
-    double* restrict csx;           ///<                      compensated summation for x
-    double* restrict csv;           ///<                      compensated summation for v
-    double* restrict csa0;          ///<                      compensated summation for a
+    double* REBOUND_RESTRICT at;            ///< Temporary buffer for acceleration
+    double* REBOUND_RESTRICT x0;            ///<                      position (used for initial values at h=0)
+    double* REBOUND_RESTRICT v0;            ///<                      velocity
+    double* REBOUND_RESTRICT a0;            ///<                      acceleration
+    double* REBOUND_RESTRICT csx;           ///<                      compensated summation for x
+    double* REBOUND_RESTRICT csv;           ///<                      compensated summation for v
+    double* REBOUND_RESTRICT csa0;          ///<                      compensated summation for a
 
     struct reb_dp7 g;
     struct reb_dp7 b;
@@ -208,7 +233,7 @@ struct reb_simulation_integrator_mercurius {
     double* encounterRhill;
     unsigned int* encounterIndicies;
     struct reb_particle* encounterParticles;
-    struct reb_particle* restrict p_hold;
+    struct reb_particle* REBOUND_RESTRICT p_hold;
 };
 
 /**
@@ -324,7 +349,7 @@ struct reb_simulation_integrator_whfast {
      * It is automatically filled and updated by WHfast.
      * Access this array with caution.
      */
-    struct reb_particle* restrict p_jh;
+    struct reb_particle* REBOUND_RESTRICT p_jh;
     
     /**
      * @brief Generate inertial coordinates at the end of the integration, but do not change the Jacobi/heliocentric coordinates
@@ -391,7 +416,7 @@ struct reb_simulation_integrator_janus {
      * @cond PRIVATE
      * Internal data structures below. Nothing to be changed by the user.
      */
-    struct reb_particle_int* restrict p_int;    ///< Integer particle pos/vel
+    struct reb_particle_int* REBOUND_RESTRICT p_int;    ///< Integer particle pos/vel
     unsigned int allocated_N;                   ///< Space allocated in arrays
     /**
      * @endcond
@@ -434,6 +459,7 @@ enum REB_STATUS {
     REB_EXIT_ESCAPE = 4,        ///< The integration ends early because a particle escaped (see exit_max_distance)  
     REB_EXIT_USER = 5,          ///< User caused exit, simulation did not finish successfully.
     REB_EXIT_SIGINT = 6,        ///< SIGINT received. Simulation stopped.
+    REB_EXIT_COLLISION = 7,     ///< The integration ends early because two particles collided. 
 };
 
 
@@ -512,9 +538,9 @@ enum REB_BINARY_FIELD_TYPE {
     REB_BINARY_FIELD_TYPE_MEGNON = 44,
     REB_BINARY_FIELD_TYPE_SASIZEFIRST = 45,
     REB_BINARY_FIELD_TYPE_SASIZESNAPSHOT = 46,
-    REB_BINARY_FIELD_TYPE_SAINTERVAL = 47,
+    REB_BINARY_FIELD_TYPE_SAAUTOINTERVAL = 47,
+    REB_BINARY_FIELD_TYPE_SAAUTOWALLTIME = 102,
     REB_BINARY_FIELD_TYPE_SANEXT = 48,
-    REB_BINARY_FIELD_TYPE_SAWALLTIME = 49,
     REB_BINARY_FIELD_TYPE_COLLISION = 50,
     REB_BINARY_FIELD_TYPE_INTEGRATOR = 51,
     REB_BINARY_FIELD_TYPE_BOUNDARY = 52,
@@ -560,7 +586,6 @@ enum REB_BINARY_FIELD_TYPE {
     REB_BINARY_FIELD_TYPE_IAS15_E = 99,
     REB_BINARY_FIELD_TYPE_IAS15_BR = 100,
     REB_BINARY_FIELD_TYPE_IAS15_ER = 101,
-    REB_BINARY_FIELD_TYPE_SAINTERVALWALLTIME = 102,
     REB_BINARY_FIELD_TYPE_WHFAST_PJ = 104,
     REB_BINARY_FIELD_TYPE_VISUALIZATION = 107,
     REB_BINARY_FIELD_TYPE_JANUS_ALLOCATEDN = 110,
@@ -575,8 +600,11 @@ enum REB_BINARY_FIELD_TYPE {
     REB_BINARY_FIELD_TYPE_MERCURIUS_ISSYNCHRON = 120,
     REB_BINARY_FIELD_TYPE_MERCURIUS_M0 = 121,
     REB_BINARY_FIELD_TYPE_MERCURIUS_RHILL = 122,
-    REB_BINARY_FIELD_TYPE_MERCURIUS_RHILLALLOCATEDN = 123,
     REB_BINARY_FIELD_TYPE_MERCURIUS_KEEPUNSYNC = 124,
+    REB_BINARY_FIELD_TYPE_SAVERSION = 125,
+    REB_BINARY_FIELD_TYPE_WALLTIME = 126,
+    REB_BINARY_FIELD_TYPE_HEADER = 1329743186,  // Corresponds to REBO (first characters of header text)
+    REB_BINARY_FIELD_TYPE_SABLOB = 9998,        // SA Blob
     REB_BINARY_FIELD_TYPE_END = 9999,
 };
 
@@ -584,8 +612,36 @@ enum REB_BINARY_FIELD_TYPE {
  * @brief This structure is used to save and load binary files.
  */
 struct reb_binary_field {
-    enum REB_BINARY_FIELD_TYPE type;    ///< Type of what field
-    long size;                          ///< Size in bytes of field (only what follows, not the binary field, itself).
+    uint32_t type;  ///< Type of what field (enum of REB_BINARY_FIELD_TYPE)
+    uint64_t size;  ///< Size in bytes of field (only counting what follows, not the binary field, itself).
+};
+
+/**
+ * @brief This structure is used to save and load simulation archive files.
+ */
+struct reb_simulationarchive_blob {
+    int32_t index;                         ///< Index of previous blob (binary file is 0, first blob is 1)
+    int16_t offset_prev;                   ///< Offset to beginning of previous blob (size of previous blob).
+    int16_t offset_next;                   ///< Offset to end of following blob (size of following blob).
+};
+
+
+/**
+ * @brief This structure is used to save and load SimulationArchive files.
+ * @details Everthing in this struct is handled by REBOUND itself. Users 
+ * should not need to access this struct manually.
+ */
+struct reb_simulationarchive{
+    FILE* inf;              ///< File pointer (will be kept open)
+    char* filename;         ///< Filename of open file
+    int version;            ///< SimulationArchive version
+    long size_first;        ///< Size of first snapshot (only used for version 1)
+    long size_snapshot;     ///< Size of snapshot (only used for version 1)
+    double auto_interval;   ///< Interval setting used to create SA (if used)
+    double auto_walltime;   ///< Walltime setting used to create SA (if used)
+    long nblobs;            ///< Total number of snapshots (including initial binary)
+    uint32_t* offset;       ///< Index of offsets in file (length nblobs)
+    double* t;              ///< Index of simulation times in file (length nblobs)
 };
 
 /**
@@ -655,6 +711,7 @@ struct reb_orbit {
     double l;        ///< Mean Longitude
     double theta;    ///< True Longitude
     double T;        ///< Time of pericenter passage
+    double rhill;    ///< Circular Hill radius 
 };
 
 /**
@@ -705,6 +762,7 @@ struct reb_simulation {
     struct reb_display_data* display_data; /// < Datastructure stores visualization related data. Does not have to be modified by the user. 
     int track_energy_offset;        ///< Track energy change during collisions and ejections (default: 0).
     double energy_offset;           ///< Energy offset due to collisions and ejections (only calculated if track_energy_offset=1).
+    double walltime;                ///< Walltime in seconds used by REBOUND for this simulation (integration only, not visualization, heartbeat function, etc).
     /** @} */
 
     /**
@@ -779,14 +837,13 @@ struct reb_simulation {
      * \name Variables related to SimulationArchive 
      * @{
      */
-    long   simulationarchive_size_first;        ///< Size of the initial binary file in a SA
-    long   simulationarchive_size_snapshot;     ///< Size of a snapshot in a SA (other than 1st), in bytes
-    double simulationarchive_interval;          ///< Current sampling cadence, in code units
-    double simulationarchive_interval_walltime; ///< Current sampling cadence, in wall time
-    double simulationarchive_next;              ///< Next output time
+    int    simulationarchive_version;           ///< Version of the SA binary format (1=original/, 2=incremental)
+    long   simulationarchive_size_first;        ///< (Deprecated SAV1) Size of the initial binary file in a SA
+    long   simulationarchive_size_snapshot;     ///< (Deprecated SAV1) Size of a snapshot in a SA (other than 1st), in bytes
+    double simulationarchive_auto_interval;     ///< Current sampling cadence, in code units
+    double simulationarchive_auto_walltime;     ///< Current sampling cadence, in wall time
+    double simulationarchive_next;              ///< Next output time (simulation tim or wall time, depending on wether auto_interval or auto_walltime is set)
     char*  simulationarchive_filename;          ///< Name of output file
-    double simulationarchive_walltime;          ///< Current walltime since beginning of simulation
-    struct timeval simulationarchive_time;      ///< Time of last output
     /** @} */
 
     /**
@@ -809,6 +866,7 @@ struct reb_simulation {
         REB_COLLISION_DIRECT = 1,   ///< Direct collision search O(N^2)
         REB_COLLISION_TREE = 2,     ///< Tree based collision search O(N log(N))
         REB_COLLISION_MERCURIUS = 3,///< Direct collision search optimized for MERCURIUS
+        REB_COLLISION_LINE = 4,     ///< Direct collision search O(N^2), looks for collisions by assuming a linear path over the last timestep
         } collision;
     /**
      * @brief Available integrators
@@ -992,11 +1050,16 @@ void reb_configure_box(struct reb_simulation* const r, const double boxsize, con
 void reb_free_simulation(struct reb_simulation* const r);
 
 /**
+ * @cond PRIVATE
+ */
+
+/**
  * @brief Frees up all space used by a REBOUND simulation, but not the reb_simulation structure itself.
  * @details The REBOUND simulation is not usable anymore after being passed to this function.
  * @param r The rebound simulation to be freed
  */
 void reb_free_pointers(struct reb_simulation* const r);
+/** @endcond */
 
 #ifdef MPI
 /**
@@ -1081,6 +1144,11 @@ struct reb_particle* reb_get_particle_by_hash(struct reb_simulation* const r, ui
 void reb_run_heartbeat(struct reb_simulation* const r);
 
 /**
+ * @brief Resolve collision by simply halting the integration and setting r->status=REB_EXIT_COLLISION (Default)
+ */
+int reb_collision_resolve_halt(struct reb_simulation* const r, struct reb_collision c);
+
+/**
  * @brief Hardsphere collision resolving routine (default).
  */
 int reb_collision_resolve_hardsphere(struct reb_simulation* const r, struct reb_collision c);
@@ -1133,8 +1201,18 @@ double reb_random_normal(double variance);
 double reb_random_rayleigh(double sigma);
 
 /**
+ * @brief Move to the heliocentric frame.
+ * @details This function moves all particles to the heliocentric 
+ * frame. Note that the simulation will not stay in the heliocentric frame
+ * as it is not an inertial frame. Variational particles are not affected
+ * by the function.
+ * @param r The rebound simulation to be considered
+ */
+void reb_move_to_hel(struct reb_simulation* const r);
+
+/**
  * @brief Move to center of momentum and center of mass frame.
- * @details This function moved all particles to the center of mass 
+ * @details This function moves all particles to the center of mass 
  * frame (sometimes also called center of momentum frame). In this frame
  * the center of mass is at rest.
  * It is recommended to call this function before you are doing a long
@@ -1169,8 +1247,23 @@ struct reb_particle reb_get_com_of_pair(struct reb_particle p1, struct reb_parti
  * @param radius 1D array to to hold particle radii
  * @param xyz 3D array to to hold particle positions
  * @param vxvyvz 3D array to to hold particle velocities
+ * @param xyzvxvyvz 3D array to to hold particle positions and velocities
 */
-void reb_serialize_particle_data(struct reb_simulation* r, uint32_t* hash, double* m, double* radius, double (*xyz)[3], double (*vxvyvz)[3]);
+void reb_serialize_particle_data(struct reb_simulation* r, uint32_t* hash, double* m, double* radius, double (*xyz)[3], double (*vxvyvz)[3], double (*xyzvxvyvz)[6]);
+
+/**
+ * @brief Sets particle data to data provided in arrays. 
+ * @details This function can be used to quickly set particle data in a serialized form.
+ * NULL pointers will not be accessed.
+ * @param r The rebound simulation to be considered
+ * @param hash 1D array to to hold particle hashes
+ * @param mass 1D array to to hold particle masses
+ * @param radius 1D array to to hold particle radii
+ * @param xyz 3D array to to hold particle positions
+ * @param vxvyvz 3D array to to hold particle velocities
+ * @param xyzvxvyvz 3D array to to hold particle positions and velocities
+*/
+void reb_set_serialized_particle_data(struct reb_simulation* r, uint32_t* hash, double* m, double* radius, double (*xyz)[3], double (*vxvyvz)[3], double (*xyzvxvyvz)[6]);
 
 /**
  * @brief Takes the center of mass of a system of particles and returns the center of mass with one of the particles removed. 
@@ -1251,7 +1344,9 @@ void reb_output_orbits(struct reb_simulation* r, char* filename);
  * @param r The rebound simulation to be considered
  * @param filename Output filename.
  */
-void reb_output_binary(struct reb_simulation* r, char* filename);
+void reb_output_binary(struct reb_simulation* r, const char* filename);
+
+void reb_binary_diff(char* buf1, size_t size1, char* buf2, size_t size2, char** bufp, size_t* sizep);
 
 /**
  * @brief Append the positions and velocities of all particles to an ASCII file.
@@ -1265,7 +1360,7 @@ void reb_output_ascii(struct reb_simulation* r, char* filename);
  * @param r The rebound simulation to be considered
  * @param filename Output filename.
  */
-void reb_output_binary_positions(struct reb_simulation* r, char* filename);
+void reb_output_binary_positions(struct reb_simulation* r, const char* filename);
 
 /**
  * @brief Append the velocity dispersion of the particles to an ASCII file.
@@ -1394,7 +1489,11 @@ enum reb_input_binary_messages {
     REB_INPUT_BINARY_WARNING_VERSION = 2,
     REB_INPUT_BINARY_WARNING_POINTERS = 4,
     REB_INPUT_BINARY_WARNING_PARTICLES = 8,
+    REB_INPUT_BINARY_ERROR_FILENOTOPEN = 16,
+    REB_INPUT_BINARY_ERROR_OUTOFRANGE = 32,
+    REB_INPUT_BINARY_ERROR_SEEK = 64,
     REB_INPUT_BINARY_WARNING_FIELD_UNKOWN = 128,
+    REB_INPUT_BINARY_ERROR_INTEGRATOR = 256,
 };
 
 /**
@@ -1576,32 +1675,70 @@ struct reb_particle reb_particle_divide(struct reb_particle p1, double value);
  */
 
 /**
- * @brief Restart a simulation using a SimulationArchive file.
- * @detail This function restarts a simulation from a SimulationArchive
- * binary file. It loads the last snapshot in the archive. Note that this 
- * function depends on many requirements, for example a constant particle
- * number. See python documentation and Rein & Tamayo (2017) for more details.
- * @param filename The name of the file to be opened. 
- * @returns Returns a pointer to a new reb_simulation structure. Returns
- * NULL if an error occured. User needs to free the simulation when not used
- * anymore.
+ * @brief Allocates a simulation and sets it to a specific snapshot in a SimulationArchive file.
  */
-struct reb_simulation* reb_create_simulation_from_simulationarchive(char* filename);
+struct reb_simulation* reb_create_simulation_from_simulationarchive(struct reb_simulationarchive* sa, long snapshot);
 
 /**
- * @brief Load information from a specific snapshot a SimulationArchive file.
- * @detail This function is used by the python wrapper. If you use it by itself,
- * be sure to look at the python source code beforehand.
+ * @brief Opens a SimulationArchive
+ * @details This function opens a SimulationArchive file and creates an index to 
+ * find snapshots within the file. This may take a few seconds if there are many 
+ * snapshots in the file. Note that opening a file on a slow filesystem (for example
+ * via a network) might be partiucularly slow. The file is kept open until 
+ * the user calls reb_close_simulationarchive.
+ * @param filename The path and filename of the SimulationArchive input file.
+ * @return Returns a reb_simulationarchive struct.
  */
-int reb_simulationarchive_load_snapshot(struct reb_simulation* r, char* filename, long snapshot);
+struct reb_simulationarchive* reb_open_simulationarchive(const char* filename);
 
 /**
- * @brief Estimate the file size of a simulation using SimulationArchive.
- * @param r The simulation to be considered. Needs to have r->simulationarchive_interval set and particles need to be present in the simulation. 
- * @param tmax Maximum integration time. 
- * @returns Returns the approximate size of the SimulationArchive file in bytes.
+ * @brief Closes a SimulationArchive
+ * @details This function closes a SimulationArchive that was previously opened
+ * by the reb_open_simulationarchive function. It also destroys the index created
+ * and frees the allocated memory. 
+ * @param sa The SimulationArchive to be closed.
  */
-long reb_simulationarchive_estimate_size(struct reb_simulation* const r, double tmax);
+void reb_close_simulationarchive(struct reb_simulationarchive* sa);
+
+/**
+ * @brief Appends a SimulationArchive snapshot to a file
+ * @details This function can either be called manually or via one of the convenience methods
+ * reb_simulationarchive_automate_interval and reb_simulationarchive_automate_walltime.
+ * If the file does not exist, the function outputs a binary file. If a file exists,
+ * it appends a SimulationArchive snapshot to that file. 
+ * @param r The rebound simulation to be considered.
+ * @param filename The path and filename of the SimulationArchive output file.
+ */
+void reb_simulationarchive_snapshot(struct reb_simulation* r, const char* filename);
+
+/**
+ * @brief Automatically create a SimulationArchive Snapshot at regular intervals
+ * @param r The rebound simulation to be considered.
+ * @param filename The path and filename of the SimulationArchive output file.
+ * @param interval The interval between snapshots (in simulation time units).
+ */
+void reb_simulationarchive_automate_interval(struct reb_simulation* const r, const char* filename, double interval);
+
+/**
+ * @brief Automatically create a SimulationArchive Snapshot at regular walltime intervals
+ * @param r The rebound simulation to be considered.
+ * @param filename The path and filename of the SimulationArchive output file.
+ * @param interval The walltime interval between snapshots (in seconds).
+ */
+void reb_simulationarchive_automate_walltime(struct reb_simulation* const r, const char* filename, double walltime);
+
+/**
+ * @cond PRIVATE
+ */
+
+/**
+ * @brief Frees all the pointers in a SimulationArchive structure
+ * @param sa The SimulationArchive to be closed.
+ */
+void reb_free_simulationarchive_pointers(struct reb_simulationarchive* sa);
+
+/** @endcond */
+
 /** @} */
 
 /**
@@ -1874,5 +2011,10 @@ struct reb_display_data {
  * @cond PRIVATE
  */
 
+#ifdef __cplusplus
+}
+#endif
+
+#undef REBOUND_RESTRICT
 
 #endif

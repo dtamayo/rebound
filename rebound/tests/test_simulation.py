@@ -97,12 +97,12 @@ class TestSimulation(unittest.TestCase):
         self.assertAlmostEqual(orbits[0].e,0.01,delta=1e-15)
         self.assertAlmostEqual(orbits[0].omega,0.02,delta=1e-12)
         self.assertAlmostEqual(orbits[0].inc,0.1,delta=1e-15)
-        orbits = self.sim.calculate_orbits(heliocentric=True)
+        orbits = self.sim.calculate_orbits(primary=self.sim.particles[0])
         self.assertAlmostEqual(orbits[0].a,1.,delta=1e-15)
         self.assertAlmostEqual(orbits[0].e,0.01,delta=1e-15)
         self.assertAlmostEqual(orbits[0].omega,0.02,delta=1e-12)
         self.assertAlmostEqual(orbits[0].inc,0.1,delta=1e-15)
-        orbits = self.sim.calculate_orbits(barycentric=True)
+        orbits = self.sim.calculate_orbits(primary=self.sim.calculate_com())
         self.assertAlmostEqual(orbits[0].a,1.,delta=1e-2)
         
     def test_com(self):
@@ -253,6 +253,7 @@ class TestSimulationCollisions(unittest.TestCase):
         self.sim = rebound.Simulation()
         self.sim.gravity = "none"
         self.sim.collision = "direct"
+        self.sim.collision_resolve = "hardsphere"
         self.sim.integrator = "leapfrog"
         self.sim.G = 0.0
         self.sim.dt = 0.01
@@ -280,6 +281,7 @@ class TestSimulationCollisions(unittest.TestCase):
     def test_tree(self):
         self.sim.configure_box(10)
         self.sim.collision = "tree"
+        self.sim.collision_resolve = "hardsphere"
         self.sim.add(m=1.,x=-1,vx=1.,r=0.5)
         self.sim.add(m=1.,x=1,vx=-1.,r=0.5)
         self.sim.integrate(1.)

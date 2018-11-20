@@ -98,8 +98,75 @@ void reb_collision_search(struct reb_simulation* const r){
 						// Add particles to collision array.
 						if (r->collisions_allocatedN<=collisions_N){
 							// Allocate memory if there is no space in array.
-							// Doing it in chunks of 32 to avoid having to do it too often.
-							r->collisions_allocatedN += 32;
+							// Init to 32 if no space has been allocated yet, otherwise double it.
+							r->collisions_allocatedN = r->collisions_allocatedN ? r->collisions_allocatedN * 2 : 32;
+							r->collisions = realloc(r->collisions,sizeof(struct reb_collision)*r->collisions_allocatedN);
+						}
+						r->collisions[collisions_N].p1 = i;
+						r->collisions[collisions_N].p2 = j;
+						r->collisions[collisions_N].gb = gborig;
+						collisions_N++;
+					}
+				}
+			}
+			}
+			}
+		}
+        break;
+		case REB_COLLISION_LINE:
+		{
+            double dt_last_done = r->dt_last_done;
+			// Loop over ghost boxes, but only the inner most ring.
+			int nghostxcol = (r->nghostx>1?1:r->nghostx);
+			int nghostycol = (r->nghosty>1?1:r->nghosty);
+			int nghostzcol = (r->nghostz>1?1:r->nghostz);
+			for (int gbx=-nghostxcol; gbx<=nghostxcol; gbx++){
+			for (int gby=-nghostycol; gby<=nghostycol; gby++){
+			for (int gbz=-nghostzcol; gbz<=nghostzcol; gbz++){
+				// Loop over all particles
+				for (int i=0;i<N;i++){
+#ifndef OPENMP
+                    if (reb_sigint) return;
+#endif // OPENMP
+					struct reb_particle p1 = particles[i];
+					struct reb_ghostbox gborig = reb_boundary_get_ghostbox(r, gbx,gby,gbz);
+					struct reb_ghostbox gb = gborig;
+					// Precalculate shifted position 
+					gb.shiftx += p1.x;
+					gb.shifty += p1.y;
+					gb.shiftz += p1.z;
+					gb.shiftvx += p1.vx;
+					gb.shiftvy += p1.vy;
+					gb.shiftvz += p1.vz;
+					// Loop over all particles again
+					for (int j=i+1;j<N;j++){
+						struct reb_particle p2 = particles[j];
+						double ax = gb.shiftx - p2.x; 
+						double ay = gb.shifty - p2.y; 
+						double az = gb.shiftz - p2.z; 
+						double dx = (gb.shiftvx - p2.vx); 
+						double dy = (gb.shiftvy - p2.vy); 
+						double dz = (gb.shiftvz - p2.vz); 
+                        double dn2 = dx*dx + dy*dy + dz*dz;
+						double sr2 = (p1.r + p2.r)*(p1.r + p2.r); 
+                        double a = dn2;
+                        double b = 2.*(ax*dx + ay*dy + az*dz);
+                        double c = ax*ax + ay*ay + az*az - sr2;
+                        double s = sqrt(b*b-4.*a*c);
+                        double t1 = (-b+s)/(2.*a);
+                        double t2 = (-b-s)/(2.*a);
+                        double tmin = MIN(t1,t2);
+                        // No relative motion
+                        if (dn2<1e-30) continue;
+                        // Check if a collision occured in the last timestep
+                        // - checks if first contact was in last timestep (ignore second contact to avoid double counting)
+                        // - only works for forward integrations
+                        if ( tmin<-dt_last_done || tmin>0. || isnan(tmin) ) continue;
+						// Add particles to collision array.
+						if (r->collisions_allocatedN<=collisions_N){
+							// Allocate memory if there is no space in array.
+							// Init to 32 if no space has been allocated yet, otherwise double it.
+							r->collisions_allocatedN = r->collisions_allocatedN ? r->collisions_allocatedN * 2 : 32;
 							r->collisions = realloc(r->collisions,sizeof(struct reb_collision)*r->collisions_allocatedN);
 						}
 						r->collisions[collisions_N].p1 = i;
@@ -143,8 +210,8 @@ void reb_collision_search(struct reb_simulation* const r){
                         // Add particles to collision array.
                         if (r->collisions_allocatedN<=collisions_N){
                             // Allocate memory if there is no space in array.
-                            // Doing it in chunks of 32 to avoid having to do it too often.
-                            r->collisions_allocatedN += 32;
+                            // Init to 32 if no space has been allocated yet, otherwise double it.
+                            r->collisions_allocatedN = r->collisions_allocatedN ? r->collisions_allocatedN * 2 : 32;
                             r->collisions = realloc(r->collisions,sizeof(struct reb_collision)*r->collisions_allocatedN);
                         }
                         r->collisions[collisions_N].p1 = i;
@@ -211,8 +278,8 @@ void reb_collision_search(struct reb_simulation* const r){
                     // Add particles to collision array.
                     if (r->collisions_allocatedN<=collisions_N){
                         // Allocate memory if there is no space in array.
-                        // Doing it in chunks of 32 to avoid having to do it too often.
-                        r->collisions_allocatedN += 32;
+                        // Init to 32 if no space has been allocated yet, otherwise double it.
+                        r->collisions_allocatedN = r->collisions_allocatedN ? r->collisions_allocatedN * 2 : 32;
                         r->collisions = realloc(r->collisions,sizeof(struct reb_collision)*r->collisions_allocatedN);
                     }
                     r->collisions[collisions_N].p1 = 0;
@@ -303,7 +370,7 @@ void reb_collision_search(struct reb_simulation* const r){
 	int (*resolve) (struct reb_simulation* const r, struct reb_collision c) = r->collision_resolve;
 	if (resolve==NULL){
 		// Default is hard sphere
-		resolve = reb_collision_resolve_hardsphere;
+		resolve = reb_collision_resolve_halt;
 	}
 	for (int i=0;i<collisions_N;i++){
         
@@ -438,7 +505,8 @@ static void reb_tree_get_nearest_neighbour_in_cell(struct reb_simulation* const 
 #pragma omp critical
 			{
 				if (r->collisions_allocatedN<=(*collisions_N)){
-					r->collisions_allocatedN += 32;
+					// Init to 32 if no space has been allocated yet, otherwise double it.
+					r->collisions_allocatedN = r->collisions_allocatedN ? r->collisions_allocatedN * 2 : 32;
 					r->collisions = realloc(r->collisions,sizeof(struct reb_collision)*r->collisions_allocatedN);
 				}
 				r->collisions[(*collisions_N)] = *collision_nearest;
@@ -561,6 +629,12 @@ int reb_collision_resolve_hardsphere(struct reb_simulation* const r, struct reb_
     return 0;
 }
 
+int reb_collision_resolve_halt(struct reb_simulation* const r, struct reb_collision c){
+    r->status = REB_EXIT_COLLISION;
+	r->particles[c.p1].lastcollision = r->t;
+	r->particles[c.p2].lastcollision = r->t;
+    return 0; // don't remove either particle
+}
 
 int reb_collision_resolve_merge(struct reb_simulation* const r, struct reb_collision c){
 	if (r->particles[c.p1].lastcollision==r->t || r->particles[c.p2].lastcollision==r->t) return 0;

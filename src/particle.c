@@ -51,13 +51,17 @@ static void reb_add_local(struct reb_simulation* const r, struct reb_particle pt
 		return;
 	}
 	while (r->allocatedN<=r->N){
-		r->allocatedN += 128;
+		r->allocatedN = r->allocatedN ? r->allocatedN * 2 : 128;
 		r->particles = realloc(r->particles,sizeof(struct reb_particle)*r->allocatedN);
 	}
 
 	r->particles[r->N] = pt;
 	r->particles[r->N].sim = r;
 	if (r->gravity==REB_GRAVITY_TREE || r->collision==REB_COLLISION_TREE){
+        if (r->root_size==-1){
+            reb_error(r,"root_size is -1. Make sure you call reb_configure_box() before using a tree based gravity or collision solver.");
+            return;
+        }
 		reb_tree_add_particle_to_tree(r, r->N);
 	}
 	(r->N)++;
@@ -157,7 +161,7 @@ static void reb_update_particle_lookup_table(struct reb_simulation* const r){
     int zerohash = -1;
     for(int i=0; i<r->N; i++){
         if(N_hash >= r->allocatedN_lookup){
-            r->allocatedN_lookup += 128;
+            r->allocatedN_lookup = r->allocatedN_lookup ? r->allocatedN_lookup * 2 : 128;
             r->particle_lookup_table = realloc(r->particle_lookup_table, sizeof(struct reb_hash_pointer_pair)*r->allocatedN_lookup);
         }
         if(particles[i].hash == 0){ // default hash (0) special case

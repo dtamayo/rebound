@@ -1,5 +1,5 @@
 from ctypes import Structure, c_double, POINTER, c_float, c_int, c_uint, c_uint32, c_int64, c_long, c_ulong, c_ulonglong, c_void_p, c_char_p, CFUNCTYPE, byref, create_string_buffer, addressof, pointer, cast
-from . import clibrebound, Escape, NoParticles, Encounter, SimulationError, ParticleNotFound
+from . import clibrebound, Escape, NoParticles, Encounter, Collision, SimulationError, ParticleNotFound
 from .particle import Particle
 from .units import units_convert_particle, check_units, convert_G
 from .tools import hash as rebhash
@@ -23,7 +23,7 @@ import types
 INTEGRATORS = {"ias15": 0, "whfast": 1, "sei": 2, "leapfrog": 4, "hermes": 5, "none": 7, "janus": 8, "mercurius": 9}
 BOUNDARIES = {"none": 0, "open": 1, "periodic": 2, "shear": 3}
 GRAVITIES = {"none": 0, "basic": 1, "compensated": 2, "tree": 3, "mercurius": 4}
-COLLISIONS = {"none": 0, "direct": 1, "tree": 2, "mercurius": 3}
+COLLISIONS = {"none": 0, "direct": 1, "tree": 2, "mercurius": 3, "line": 4}
 VISUALIZATIONS = {"none": 0, "opengl": 1, "webgl": 2}
 COORDINATES = {"jacobi": 0, "democraticheliocentric": 1, "whds": 2}
 BINARY_WARNINGS = [
@@ -31,7 +31,11 @@ BINARY_WARNINGS = [
     ("Binary file was saved with a different version of REBOUND. Binary format might have changed.", 2),
     ("You have to reset function pointers after creating a reb_simulation struct with a binary file.", 4),
     ("Binary file might be corrupted. Number of particles found does not match particle number expected.", 8),
-    ("Unknown field found in binary file.", 128)
+    ("Error while reading binary file (file was closed).", 16),
+    ("Index out of range.", 32),
+    ("Error while trying to seek file.", 64),
+    ("Encountered unkown field in file. File might have been saved with a different version of REBOUND.", 128),
+    ("Integrator type is not supported by this simulation archive version.", 256)
 ]
 
 class reb_hash_pointer_pair(Structure):
@@ -240,6 +244,8 @@ class Orbit(Structure):
         true longitude = Omega + omega + f
     T       : float
         time of pericenter passage
+    rhill   : float
+        Hill radius ( =a*pow(m/(3M),1./3.) )
     """
     _fields_ = [("d", c_double),
                 ("v", c_double),
@@ -256,15 +262,14 @@ class Orbit(Structure):
                 ("M", c_double),
                 ("l", c_double),
                 ("theta", c_double),
-                ("T", c_double)]
+                ("T", c_double),
+                ("rhill", c_double)]
 
     def __str__(self):
         """
         Returns a string with the semi-major axis and eccentricity of the orbit.
         """
         return "<rebound.Orbit instance, a={0} e={1} inc={2} Omega={3} omega={4} f={5}>".format(str(self.a),str(self.e), str(self.inc), str(self.Omega), str(self.omega), str(self.f))
-
-
 
 class Simulation(Structure):
     """
@@ -319,11 +324,15 @@ class Simulation(Structure):
         A rebound.Simulation object.
         
         """
-        sim = Simulation.from_file(filename)
-        clibrebound.reb_simulationarchive_load_snapshot.restype = c_int
-        err = clibrebound.reb_simulationarchive_load_snapshot(byref(sim),c_char_p(filename.encode("ascii")),snapshot)
-        if err != 0:
-            raise AttributeError("Error loading simulation from archive.")
+        w = c_int(0)
+        sim = Simulation()
+        sa = SimulationArchive(filename)
+        clibrebound.reb_create_simulation_from_simulationarchive_with_messages(byref(sim),byref(sa),snapshot,byref(w))
+        if w.value & (1+16+32+64+256) :     # Major error
+            raise ValueError(BINARY_WARNINGS[0])
+        for message, value in BINARY_WARNINGS:  # Just warnings
+            if w.value & value:
+                warnings.warn(message, RuntimeWarning)
         return sim
 
     @classmethod
@@ -356,7 +365,7 @@ class Simulation(Structure):
         w = c_int(0)
         sim = Simulation()
         clibrebound.reb_create_simulation_from_binary_with_messages(byref(sim), c_char_p(filename.encode("ascii")),byref(w))
-        if w.value & 1:     # Major error
+        if w.value & (1+16+32+64+256) :     # Major error
             raise ValueError(BINARY_WARNINGS[0])
         for message, value in BINARY_WARNINGS:  # Just warnings
             if w.value & value and value!=1:
@@ -420,47 +429,11 @@ class Simulation(Structure):
 
 
 # Simulation Archive tools
-    @property 
-    def simulationarchive_filename(self):
+    def automateSimulationArchive(self, filename, interval=None, walltime=None, deletefile=False):
         """
-        Filename where to store SimulationArchive
-        """
-        return self._sa_filename.value.decode("ascii")
-    @simulationarchive_filename.setter
-    def simulationarchive_filename(self, filename):
-        self._sa_filename = c_char_p(filename.encode("ascii")) # keep a reference to string
-        self._simulationarchive_filename = self._sa_filename
-    
-    def estimateSimulationArchiveSize(self, tmax):
-        """
-        This function estimates the SimulationArchive file size (in bytes)
-        before a simulation is run. This is useful to check if the interval
-        results in a resonable filesize.
-
-        Note that the simulation setup needs to be complete, that is
-        with all the particles present, before this function can return 
-        meaningful results.
-        
-        Arguments
-        ---------
-        tmax : float
-            Maximum integration time in current code units.
-        """
-        if self.simulationarchive_interval ==0.:
-            raise RuntimeError("Need to set simulationarchive_interval before estimating filesize.")
-        if self.N==0:
-            raise RuntimeError("Need to add particles to simulation before estimating filesize.")
-
-        clibrebound.reb_simulationarchive_estimate_size.restype = c_long
-        estsize = clibrebound.reb_simulationarchive_estimate_size(byref(self), c_double(tmax))
-        self.process_messages()
-        return estsize
-        
-    def initSimulationArchive(self, filename, interval=None, interval_walltime=None):
-        """
-        This function initializes the Simulation Archive so that
-        binary data can be outputted to the SimulationArchive file 
-        during the simulation.
+        This function automates taking snapshots during a simulationusing the Simulation Archive.
+        Instead of using this function, one can also call simulationarchive_snapshot() manually
+        to create snapshots.
 
         
         Arguments
@@ -469,7 +442,7 @@ class Simulation(Structure):
             Filename of the binary file.
         interval : float
             Interval between outputs in code units.
-        interval_walltime : float
+        walltime : float
             Interval between outputs in wall time (seconds). 
             Useful when using IAS15 with adaptive timesteps. 
         
@@ -482,22 +455,50 @@ class Simulation(Structure):
         >>> sim = rebound.Simulation()
         >>> sim.add(m=1.)
         >>> sim.add(m=1.e-3,x=1.,vy=1.)
-        >>> sim.initSimulationArchive("sa.bin",interval=1000.)
+        >>> sim.automateSimulationArchive("sa.bin",interval=1000.)
         >>> sim.integrate(1e8)
-        """
-        self.simulationarchive_filename = filename
-        if interval is None and interval_walltime is None:
-            raise AttributeError("Need to specify either interval or interval_walltime.")
-        self.simulationarchive_walltime = 0.
-        self.simulationarchive_next = 0.
-        self.simulationarchive_interval = 0. 
-        self.simulationarchive_interval_walltime = 0.
-        if interval:
-            self.simulationarchive_interval = interval
-        if interval_walltime:
-            self.simulationarchive_interval_walltime = interval_walltime
 
-    
+        The SimulationArchive can later be read in using the following syntax:
+
+        >>> sa = rebound.SimulationArchive("sa.bin")
+        >>> sim = sa[0]   # get the first snapshot in the SA file (initial conditions)
+        >>> sim = sa[-1]  # get the last snapshot in the SA file
+
+        """
+        if interval is None and walltime is None:
+            raise AttributeError("Need to specify either interval or walltime.")
+        if deletefile and os.path.isfile(filename):
+            os.remove(filename)
+        self.simulationarchive_next = 0.
+        if interval:
+            clibrebound.reb_simulationarchive_automate_interval(byref(self), c_char_p(filename.encode("ascii")), c_double(interval))
+        if walltime:
+            clibrebound.reb_simulationarchive_automate_walltime(byref(self), c_char_p(filename.encode("ascii")), c_double(walltime))
+        self.process_messages()
+
+    def simulationarchive_snapshot(self, filename):
+        """
+        Take a snapshot and save it to a SimulationArchive file.
+        If the file does not exist yet, a new one will be created. 
+        If the file does exist, a snapshot will be appended.
+        
+        Arguments
+        ---------
+        filename : str
+            Filename of the binary file.
+
+        """
+        clibrebound.reb_simulationarchive_snapshot(byref(self), c_char_p(filename.encode("ascii")))
+
+    @property
+    def simulationarchive_filename(self):
+        """
+        Returns the current SimulationArchive filename in use. 
+        Do not set manually. Use sim.automateSimulationArchive() instead
+        """
+        return self._simulationarchive_filename
+
+# Message and memory management functions
     def process_messages(self):
         clibrebound.reb_get_next_message.restype = c_int
         buf = create_string_buffer(c_int.in_dll(clibrebound, "reb_max_messages_length").value)
@@ -795,6 +796,7 @@ class Simulation(Structure):
         - ``'direct'``
         - ``'tree'``
         - ``'mercurius'`` 
+        - ``'direct'``
         
         Check the online documentation for a full description of each of the modules. 
         """
@@ -1108,7 +1110,7 @@ class Simulation(Structure):
                     raise AttributeError("Each line requires 8 floats corresponding to mass, radius, position (x,y,z) and velocity (x,y,z).")
 
 # Orbit calculation
-    def calculate_orbits(self, heliocentric=False, barycentric=False):
+    def calculate_orbits(self, primary=None, jacobi_masses=False, heliocentric=None, barycentric=None):
         """ 
         Calculate orbital parameters for all partices in the simulation.
         By default this functions returns the orbits in Jacobi coordinates. 
@@ -1117,32 +1119,43 @@ class Simulation(Structure):
 
         Parameters
         ----------
-        heliocentric : bool, optional
-            Set the parameter heliocentric to True to return orbits referenced to sim.particles[0].
-        barycentric : bool, optional
-            Set the parameter barycentric to True to return orbits referenced to the system's barycenter.
-            
+
+        primary     : rebound.Particle, optional
+            Set the primary against which to reference the osculating orbit. Default(use Jacobi center of mass)
+        jacobi_masses: bool
+            Whether to use jacobi primary mass in orbit calculation. (Default: False)
+        heliocentric: bool, DEPRECATED
+            To calculate heliocentric elements, pass primary=sim.particles[0]
+        barycentric : bool, DEPRECATED
+            To calculate barycentric elements, pass primary=sim.calculate_com()
 
         Returns
         -------
         Returns an array of Orbits of length N-1.
         """
-        _particles_tmp = self.particles
         orbits = []
-        
-        jacobi = True
-        com = _particles_tmp[0]
-        if heliocentric is True:
-            jacobi = False
-        if barycentric is True:
-            com = self.calculate_com()
+       
+        if heliocentric is not None or barycentric is not None:
+            raise AttributeError('heliocentric and barycentric keywords in calculate_orbits are deprecated. Pass primary keyword instead (sim.particles[0] for heliocentric and sim.calculate_com() for barycentric)')
+
+        if primary is None:
+            jacobi = True
+            primary = self.particles[0]
+            clibrebound.reb_get_com_of_pair.restype = Particle
+        else:
             jacobi = False
 
-        clibrebound.reb_get_com_of_pair.restype = Particle
-        for i in range(1,self.N_real):
-            orbits.append(_particles_tmp[i].calculate_orbit(primary=com))
-            if jacobi is True:
-                com = clibrebound.reb_get_com_of_pair(com, _particles_tmp[i])
+        for p in self.particles[1:self.N_real]:
+            if jacobi_masses is True:
+                interior_mass = primary.m
+                # orbit conversion uses mu=G*(p.m+primary.m) so set prim.m=Mjac-m so mu=G*Mjac
+                primary.m = self.particles[0].m*(p.m + interior_mass)/interior_mass - p.m
+                orbits.append(p.calculate_orbit(primary=primary))
+                primary.m = interior_mass # back to total mass of interior bodies to update com
+            else:
+                orbits.append(p.calculate_orbit(primary=primary))
+            if jacobi is True: # update com to include current particle for next iteration
+                primary = clibrebound.reb_get_com_of_pair(primary, p)
 
         return orbits
 
@@ -1194,11 +1207,13 @@ class Simulation(Structure):
         It expects correctly sized numpy arrays as arguments. The argument
         name indicates what kind of particle data is written to the array. 
         
-        Possible argument names are "hash", "m", "r", "xyz", "vxvyvz".
-        The datatype for the "hash" array needs to be uint32. The other arrays
-        expect a datatype of float64. The lengths of "hash", "m", "r" arrays
-        need to be at least sim.N. The lengths of xyz and vxvyvz need
-        to be at least 3*sim.N. Exceptions are raised otherwise.
+        Possible argument names are "hash", "m", "r", "xyz", "vxvyvz", and 
+        "xyzvxvyvz". The datatype for the "hash" array needs to be uint32. 
+        The other arrays expect a datatype of float64. The lengths of 
+        "hash", "m", "r" arrays need to be at least sim.N. The lengths of 
+        xyz and vxvyvz need to be at least 3*sim.N. The length of
+        "xyzvxvyvz" arrays need to be 6*sim.N. Exceptions are raised 
+        otherwise.
 
         Note that this routine is only intended for special use cases
         where speed is an issue. For normal use, it is recommended to
@@ -1230,7 +1245,7 @@ class Simulation(Structure):
 
         """
         N = self.N
-        possible_keys = ["hash","m","r","xyz","vxvyvz"]
+        possible_keys = ["hash","m","r","xyz","vxvyvz","xyzvxvyvz"]
         d = {x:None for x in possible_keys}
         for k,v in kwargs.items():
             if k in d:
@@ -1245,6 +1260,8 @@ class Simulation(Structure):
                         raise AttributeError("Expected 'float64' data type for %s array."%k)
                     if k in ["xyz", "vxvyvz"]:
                         minsize = 3*N
+                    elif k in ["xyzvxvyvz"]:
+                        minsize = 6*N
                     else:
                         minsize = N
                     if v.size<minsize:
@@ -1253,8 +1270,51 @@ class Simulation(Structure):
             else:
                 raise AttributeError("Only '%s' are currently supported attributes for serialization." % "', '".join(d.keys()))
 
-        clibrebound.reb_serialize_particle_data(byref(self), d["hash"], d["m"], d["r"], d["xyz"], d["vxvyvz"])
+        clibrebound.reb_serialize_particle_data(byref(self), d["hash"], d["m"], d["r"], d["xyz"], d["vxvyvz"], d["xyzvxvyvz"])
+    
+    def set_serialized_particle_data(self,**kwargs):
+        """
+        Fast way to set serialized particle data via numpy arrays.
+        This is the inverse of Simulation.serialize_particle_data()
+        and uses the same syntax
+        """
 
+        N = self.N
+        possible_keys = ["hash","m","r","xyz","vxvyvz","xyzvxvyvz"]
+        d = {x:None for x in possible_keys}
+        for k,v in kwargs.items():
+            if k in d:
+                if k == "hash":
+                    if v.dtype!= "uint32":
+                        raise AttributeError("Expected 'uint32' data type for '%s' array."%k)
+                    if v.size<N:
+                        raise AttributeError("Array '%s' is not large enough."%k)
+                    d[k] = v.ctypes.data_as(ctypes.POINTER(ctypes.c_uint32))
+                else:
+                    if v.dtype!= "float64":
+                        raise AttributeError("Expected 'float64' data type for %s array."%k)
+                    if k in ["xyz", "vxvyvz"]:
+                        minsize = 3*N
+                    elif k in ["xyzvxvyvz"]:
+                        minsize = 6*N
+                    else:
+                        minsize = N
+                    if v.size<minsize:
+                        raise AttributeError("Array '%s' is not large enough."%k)
+                    d[k] = v.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+            else:
+                raise AttributeError("Only '%s' are currently supported attributes for serialization." % "', '".join(d.keys()))
+
+        clibrebound.reb_set_serialized_particle_data(byref(self), d["hash"], d["m"], d["r"], d["xyz"], d["vxvyvz"], d["xyzvxvyvz"])
+
+    def move_to_hel(self):
+        """
+        This function moves all particles in the simulation to the heliocentric frame.
+        Note that the simulation will not stay in the heliocentric frame during integrations
+        as the heliocentric frame is not an innertial frame.
+        """
+        clibrebound.reb_move_to_hel(byref(self))
+    
     def move_to_com(self):
         """
         This function moves all particles in the simulation to a center of momentum frame.
@@ -1375,6 +1435,8 @@ class Simulation(Structure):
                 raise Escape("User caused exit. Simulation did not finish.") # should not occur in python
             if ret_value == 6:
                 raise KeyboardInterrupt
+            if ret_value == 7:
+                raise Collision("Two particles collided (d < r1+r2)")
         else:
             debug.integrate_other_package(tmax,exact_finish_time)
         self.process_messages()
@@ -1633,6 +1695,7 @@ Simulation._fields_ = [
                 ("display_data", POINTER(reb_display_data)),
                 ("track_energy_offset", c_int),
                 ("energy_offset", c_double),
+                ("walltime", c_double),
                 ("boxsize", reb_vec3d),
                 ("boxsize_max", c_double),
                 ("root_size", c_double),
@@ -1658,14 +1721,13 @@ Simulation._fields_ = [
                 ("megno_mean_t", c_double),
                 ("megno_mean_Y", c_double),
                 ("megno_n", c_long),
+                ("simulationarchive_version", c_int),
                 ("simulationarchive_size_first", c_long),
                 ("simulationarchive_size_snapshot", c_long),
-                ("simulationarchive_interval", c_double),
-                ("simulationarchive_interval_walltime", c_double),
+                ("simulationarchive_auto_interval", c_double),
+                ("simulationarchive_auto_walltime", c_double),
                 ("simulationarchive_next", c_double),
                 ("_simulationarchive_filename", c_char_p),
-                ("simulationarchive_walltime", c_double),
-                ("simulationarchive_time", timeval),
                 ("_visualization", c_int),
                 ("_collision", c_int),
                 ("_integrator", c_int),
@@ -1781,3 +1843,4 @@ class Particles(MutableMapping):
 # Import at the end to avoid circular dependence
 from . import horizons
 from . import debug
+from .simulationarchive import SimulationArchive

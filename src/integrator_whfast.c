@@ -159,7 +159,7 @@ void reb_whfast_kepler_solver(const struct reb_simulation* const r, struct reb_p
     const double zeta0 = M - beta*r0;
     double X;
     double Gs[6]; 
-    double invperiod;  // only used for beta>0.
+    double invperiod=0;  // only used for beta>0. Set to 0 only to suppress compiler warnings.
     double X_per_period = nan(""); // only used for beta>0. nan triggers Newton's method for beta<0.
         
     if (beta>0.){
@@ -249,9 +249,18 @@ void reb_whfast_kepler_solver(const struct reb_simulation* const r, struct reb_p
             //Hyperbolic
             double h2 = r0*r0*v2-eta0*eta0;
             double q = h2/M/(1.+sqrt(1.-h2*beta/(M*M)));
-            double vq = sqrt(h2)/q;
-            X_min = 1./(vq+r0/_dt);
+            double vq = copysign( sqrt(h2)/q, _dt);
+            // X_max and X_min correspond to dt/r_min and dt/r_max
+            // which are reachable in this timestep
+            // r_max = vq*_dt+r0
+            // r_min = pericenter
+            X_min = _dt/(fastabs(vq*_dt)+r0); 
             X_max = _dt/q;
+            if (_dt<0.){
+                double temp = X_min;
+                X_min = X_max;
+                X_max = temp;
+            }
         }
         X = (X_max + X_min)/2.;
         do{
@@ -263,7 +272,7 @@ void reb_whfast_kepler_solver(const struct reb_simulation* const r, struct reb_p
                 X_min = X;
             }
             X = (X_max + X_min)/2.;
-        }while (fastabs((X_max-X_min)/X_max)>1e-15);
+        }while (fastabs((X_max-X_min))>fastabs((X_max+X_min)*1e-15));
         const double eta0Gs1zeta0Gs2 = eta0*Gs[1] + zeta0*Gs[2];
         ri = 1./(r0 + eta0Gs1zeta0Gs2);
     }
@@ -416,7 +425,7 @@ void reb_whfast_jump_step(const struct reb_simulation* const r, const double _dt
         case REB_WHFAST_COORDINATES_DEMOCRATICHELIOCENTRIC:
             {
             double px=0, py=0, pz=0;
-#pragma omp parallel for 
+#pragma omp parallel for reduction (+:px), reduction (+:py), reduction (+:pz)
             for(int i=1;i<N_real;i++){
                 const double m = r->particles[i].m;
                 px += m * p_h[i].vx;
@@ -552,23 +561,28 @@ void reb_integrator_whfast_part1(struct reb_simulation* const r){
     for (int v=0;v<r->var_config_N;v++){
         struct reb_variational_configuration const vc = r->var_config[v];
         if (vc.order!=1){
-            reb_exit("WHFast/MEGNO only supports first order variational equations.");
+            reb_error(r, "WHFast/MEGNO only supports first order variational equations.");
+            return;
         }
         if (vc.testparticle>=0){
-            reb_exit("Test particle variations not supported with WHFast. Use IAS15.");
+            reb_error(r, "Test particle variations not supported with WHFast. Use IAS15.");
+            return;
         }
     }
     struct reb_simulation_integrator_whfast* const ri_whfast = &(r->ri_whfast);
 #if defined(_OPENMP)
     if (ri_whfast->coordinates!=REB_WHFAST_COORDINATES_DEMOCRATICHELIOCENTRIC){
         reb_error(r,"WHFast when used with OpenMP requires REB_WHFAST_COORDINATES_DEMOCRATICHELIOCENTRIC\n");
+        return;
     }
 #endif
     if (r->var_config_N>0 && ri_whfast->coordinates!=REB_WHFAST_COORDINATES_JACOBI){
-        reb_exit("Varitional particles are only compatible with Jacobi coordinates.");
+        reb_error(r, "Varitional particles are only compatible with Jacobi coordinates.");
+        return;
     }
     if (ri_whfast->corrector!=0 && ri_whfast->coordinates!=REB_WHFAST_COORDINATES_JACOBI){
-        reb_exit("Symplectic correctors are only compatible with Jacobi coordinates.");
+        reb_error(r, "Symplectic correctors are only compatible with Jacobi coordinates.");
+        return;
     }
     struct reb_particle* restrict const particles = r->particles;
     const int N = r->N;
@@ -710,12 +724,36 @@ void reb_integrator_whfast_synchronize(struct reb_simulation* const r){
 }
 
 void reb_integrator_whfast_part2(struct reb_simulation* const r){
+    for (int v=0;v<r->var_config_N;v++){
+        struct reb_variational_configuration const vc = r->var_config[v];
+        if (vc.order!=1){
+            reb_error(r, "WHFast/MEGNO only supports first order variational equations.");
+            return;
+        }
+        if (vc.testparticle>=0){
+            reb_error(r, "Test particle variations not supported with WHFast. Use IAS15.");
+            return;
+        }
+    }
     struct reb_simulation_integrator_whfast* const ri_whfast = &(r->ri_whfast);
+#if defined(_OPENMP)
+    if (ri_whfast->coordinates!=REB_WHFAST_COORDINATES_DEMOCRATICHELIOCENTRIC){
+        reb_error(r,"WHFast when used with OpenMP requires REB_WHFAST_COORDINATES_DEMOCRATICHELIOCENTRIC\n");
+        return;
+    }
+#endif
+    if (r->var_config_N>0 && ri_whfast->coordinates!=REB_WHFAST_COORDINATES_JACOBI){
+        reb_error(r, "Variational particles are only compatible with Jacobi coordinates.");
+        return;
+    }
+    if (ri_whfast->corrector!=0 && ri_whfast->coordinates!=REB_WHFAST_COORDINATES_JACOBI){
+        reb_error(r, "Symplectic correctors are only compatible with Jacobi coordinates.");
+        return;
+    }
     
     reb_whfast_interaction_step(r, r->dt);
-    
     reb_whfast_jump_step(r,r->dt/2.);
-
+   
     ri_whfast->is_synchronized = 0;
     if (ri_whfast->safe_mode){
         reb_integrator_whfast_synchronize(r);
@@ -725,7 +763,7 @@ void reb_integrator_whfast_part2(struct reb_simulation* const r){
     r->dt_last_done = r->dt;
 
     
-    if (r->calculate_megno){
+    if (r->var_config_N){
         // Need to have x,v,a synchronized to calculate ddot/d for MEGNO. 
         reb_integrator_whfast_synchronize(r);
         // Add additional acceleration term for MEGNO calculation
@@ -740,44 +778,47 @@ void reb_integrator_whfast_part2(struct reb_simulation* const r){
             ri_whfast->p_jh[index].y += r->dt/2.*ri_whfast->p_jh[index].vy;
             ri_whfast->p_jh[index].z += r->dt/2.*ri_whfast->p_jh[index].vz;
             reb_transformations_jacobi_to_inertial_posvel(particles_var1, ri_whfast->p_jh+index, particles, N_real);
-            reb_calculate_acceleration_var(r);
-            const double dx = particles[0].x - particles[1].x;
-            const double dy = particles[0].y - particles[1].y;
-            const double dz = particles[0].z - particles[1].z;
-            const double r2 = dx*dx + dy*dy + dz*dz + r->softening*r->softening;
-            const double _r  = sqrt(r2);
-            const double r3inv = 1./(r2*_r);
-            const double r5inv = 3.*r3inv/r2;
-            const double ddx = particles_var1[0].x - particles_var1[1].x;
-            const double ddy = particles_var1[0].y - particles_var1[1].y;
-            const double ddz = particles_var1[0].z - particles_var1[1].z;
-            const double Gmi = r->G * particles[0].m;
-            const double Gmj = r->G * particles[1].m;
-            const double dax =   ddx * ( dx*dx*r5inv - r3inv )
-                       + ddy * ( dx*dy*r5inv )
-                       + ddz * ( dx*dz*r5inv );
-            const double day =   ddx * ( dy*dx*r5inv )
-                       + ddy * ( dy*dy*r5inv - r3inv )
-                       + ddz * ( dy*dz*r5inv );
-            const double daz =   ddx * ( dz*dx*r5inv )
-                       + ddy * ( dz*dy*r5inv )
-                       + ddz * ( dz*dz*r5inv - r3inv );
-            
-            particles_var1[0].ax += Gmj * dax;
-            particles_var1[0].ay += Gmj * day;
-            particles_var1[0].az += Gmj * daz;
-            
-            particles_var1[1].ax -= Gmi * dax;
-            particles_var1[1].ay -= Gmi * day;
-            particles_var1[1].az -= Gmi * daz;
+            if (r->calculate_megno){
+                reb_calculate_acceleration_var(r);
+                const double dx = particles[0].x - particles[1].x;
+                const double dy = particles[0].y - particles[1].y;
+                const double dz = particles[0].z - particles[1].z;
+                const double r2 = dx*dx + dy*dy + dz*dz + r->softening*r->softening;
+                const double _r  = sqrt(r2);
+                const double r3inv = 1./(r2*_r);
+                const double r5inv = 3.*r3inv/r2;
+                const double ddx = particles_var1[0].x - particles_var1[1].x;
+                const double ddy = particles_var1[0].y - particles_var1[1].y;
+                const double ddz = particles_var1[0].z - particles_var1[1].z;
+                const double Gmi = r->G * particles[0].m;
+                const double Gmj = r->G * particles[1].m;
+                const double dax =   ddx * ( dx*dx*r5inv - r3inv )
+                           + ddy * ( dx*dy*r5inv )
+                           + ddz * ( dx*dz*r5inv );
+                const double day =   ddx * ( dy*dx*r5inv )
+                           + ddy * ( dy*dy*r5inv - r3inv )
+                           + ddz * ( dy*dz*r5inv );
+                const double daz =   ddx * ( dz*dx*r5inv )
+                           + ddy * ( dz*dy*r5inv )
+                           + ddz * ( dz*dz*r5inv - r3inv );
+                
+                particles_var1[0].ax += Gmj * dax;
+                particles_var1[0].ay += Gmj * day;
+                particles_var1[0].az += Gmj * daz;
+                
+                particles_var1[1].ax -= Gmi * dax;
+                particles_var1[1].ay -= Gmi * day;
+                particles_var1[1].az -= Gmi * daz;
 
-            // TODO Need to add mass terms. Also need to add them to tangent map above.
-
+                // TODO Need to add mass terms. Also need to add them to tangent map above.
+            }
         }
 
         // Update MEGNO in middle of timestep as we need synchonized x/v/a.
-        double dY = r->dt * 2. * r->t * reb_tools_megno_deltad_delta(r);
-        reb_tools_megno_update(r, dY);
+        if (r->calculate_megno){
+            double dY = r->dt * 2. * r->t * reb_tools_megno_deltad_delta(r);
+            reb_tools_megno_update(r, dY);
+        }
     }
 }
     
