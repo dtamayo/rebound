@@ -47,6 +47,7 @@
 #include "output.h"
 #include "tools.h"
 #include "particle.h"
+#include "input.h"
 #include "simulationarchive.h"
 #ifdef MPI
 #include "communication_mpi.h"
@@ -62,7 +63,7 @@
 const int reb_max_messages_length = 1024;   // needs to be constant expression for array size
 const int reb_max_messages_N = 10;
 const char* reb_build_str = __DATE__ " " __TIME__;  // Date and time build string. 
-const char* reb_version_str = "3.6.8";         // **VERSIONLINE** This line gets updated automatically. Do not edit manually.
+const char* reb_version_str = "3.7.2";         // **VERSIONLINE** This line gets updated automatically. Do not edit manually.
 const char* reb_githash_str = STRINGIFY(GITHASH);             // This line gets updated automatically. Do not edit manually.
 
 static int reb_error_message_waiting(struct reb_simulation* const r);
@@ -407,6 +408,33 @@ struct reb_simulation* reb_create_simulation(){
     struct reb_simulation* r = calloc(1,sizeof(struct reb_simulation));
     reb_init_simulation(r);
     return r;
+}
+
+
+void _reb_copy_simulation_with_messages(struct reb_simulation* r_copy,  struct reb_simulation* r, enum reb_input_binary_messages* warnings){
+    char* bufp;
+    size_t sizep;
+    reb_output_binary_to_stream(r, &bufp,&sizep);
+    
+    reb_reset_temporary_pointers(r_copy);
+    reb_reset_function_pointers(r_copy);
+    r_copy->simulationarchive_filename = NULL;
+    
+    // Set to old version by default. Will be overwritten if new version was used.
+    r_copy->simulationarchive_version = 0;
+
+    char* bufp_beginning = bufp; // bufp will be changed
+    while(reb_input_field(r_copy, NULL, warnings, &bufp)){ }
+    free(bufp_beginning);
+    
+}
+
+struct reb_simulation* reb_copy_simulation(struct reb_simulation* r){
+    struct reb_simulation* r_copy = reb_create_simulation();
+    enum reb_input_binary_messages warnings = REB_INPUT_BINARY_WARNING_NONE;
+    _reb_copy_simulation_with_messages(r_copy,r,&warnings);
+    r = reb_input_process_warnings(r, warnings);
+    return r_copy;
 }
 
 void reb_init_simulation(struct reb_simulation* r){

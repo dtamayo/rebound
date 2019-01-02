@@ -371,6 +371,26 @@ class Simulation(Structure):
             if w.value & value and value!=1:
                 warnings.warn(message, RuntimeWarning)
         return sim
+    
+    def copy(self):
+        """
+        Returns a deep copy of a REBOUND simulation. You need to reset 
+        any function pointers on the copy. 
+        
+        Returns
+        ------- 
+        A rebound.Simulation object.
+        
+        """
+        w = c_int(0)
+        sim = Simulation()
+        clibrebound._reb_copy_simulation_with_messages(byref(sim),byref(self),byref(w))
+        if w.value & (1+16+32+64+256) :     # Major error
+            raise ValueError(BINARY_WARNINGS[0])
+        for message, value in BINARY_WARNINGS:  # Just warnings
+            if w.value & value:
+                warnings.warn(message, RuntimeWarning)
+        return sim
 
     def getWidget(self,**kwargs):
         """
@@ -513,6 +533,59 @@ class Simulation(Structure):
     def __del__(self):
         if self._b_needsfree_ == 1: # to avoid, e.g., sim.particles[1]._sim.contents.G creating a Simulation instance to get G, and then freeing the C simulation when it immediately goes out of scope
             clibrebound.reb_free_pointers(byref(self))
+
+    def __add__(self, other):
+        if not isinstance(other,Simulation):
+            return NotImplemented
+        clibrebound.reb_simulation_add.restype = c_int
+        ret = clibrebound.reb_simulation_add(byref(self), byref(other))
+        if ret==-1:
+            raise RuntimeError("Cannot add simulations. Check that the simulations have the same number of particles")
+        return self
+    
+    def __rmul__(self, other):
+        try:
+            other = float(other)
+        except:
+            return NotImplemented
+        return self.multiply(other, other)
+    
+    def __mul__(self, other):
+        try:
+            other = float(other)
+        except:
+            return NotImplemented
+        return self.multiply(other, other)
+    
+    def __div__(self, other):
+        return self.__truediv__(other)
+
+    def __truediv__(self, other):
+        try:
+            other = float(other)
+        except:
+            return NotImplemented
+        return self * (1./other)
+    
+    def __sub__(self, other):
+        if not isinstance(other,Simulation):
+            return NotImplemented
+        clibrebound.reb_simulation_subtract.restype = c_int
+        ret = clibrebound.reb_simulation_subtract(byref(self), byref(other))
+        if ret==-1:
+            raise RuntimeError("Cannot subtract simulations. Check that the simulations have the same number of particles")
+        return self
+
+
+    def multiply(self, scalar_pos, scalar_vel):
+        try:
+            scalar_pos = float(scalar_pos)
+            scalar_vel = float(scalar_vel)
+        except:
+            raise ValueError("Cannot multiply simulation with non-scalars.")
+        clibrebound.reb_simulation_multiply(byref(self), c_double(scalar_pos), c_double(scalar_vel))
+        return self
+
 
 # Status functions
     def status(self):
@@ -1600,7 +1673,7 @@ class reb_simulation_integrator_mercurius(Structure):
                 ("_mode", c_uint),
                 ("_encounterN", c_uint),
                 ("_globalN", c_uint),
-                ("_globalNactive", c_uint),
+                ("_globalNactive", c_int),
                 ("_allocatedN", c_uint),
                 ("_rhillallocatedN", c_uint),
                 ("_encounterAllocatedN", c_uint),
