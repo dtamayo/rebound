@@ -1,5 +1,23 @@
 # Unit constants
 import math
+from . import clibrebound
+from ctypes import c_char_p, c_uint32
+
+def hash_to_unit(hash):
+    clibrebound.reb_hash.restype = c_uint32
+    for u in times_SI.keys():
+        uhash = clibrebound.reb_hash(c_char_p(u.encode("ascii")))
+        if uhash == hash:
+            return u
+    for u in masses_SI.keys():
+        uhash = clibrebound.reb_hash(c_char_p(u.encode("ascii")))
+        if uhash == hash:
+            return u
+    for u in lengths_SI.keys():
+        uhash = clibrebound.reb_hash(c_char_p(u.encode("ascii")))
+        if uhash == hash:
+            return u
+    return None
 
 # All units entered in SI (kg, m, s)
 G_SI = 6.67408e-11
@@ -68,12 +86,17 @@ def convert_acc(acc, old_l, old_t, new_l, new_t):
     in_SI=acc*lengths_SI[old_l]/times_SI[old_t]**2
     return in_SI*times_SI[new_t]**2/lengths_SI[new_l]
 
-def convert_G(new_l, new_t, new_m):
+def convert_G(newunits):
+    new_l, new_t, new_m = newunits
     return G_SI*masses_SI[new_m]*times_SI[new_t]**2/lengths_SI[new_l]**3
        
 def check_units(newunits):   
     if len(newunits) is not 3:
         raise Exception("Error: Need to pass exactly 3 units for length, time, and mass (any order), see ipython_examples/Units.ipynb")
+
+    if isinstance(newunits, dict): 
+        # keys are not important as they are inferred from the values anyway
+        newunits = newunits.values() 
     
     l_unit = t_unit = m_unit = None
     for unit in newunits:

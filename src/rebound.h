@@ -603,6 +603,9 @@ enum REB_BINARY_FIELD_TYPE {
     REB_BINARY_FIELD_TYPE_MERCURIUS_KEEPUNSYNC = 124,
     REB_BINARY_FIELD_TYPE_SAVERSION = 125,
     REB_BINARY_FIELD_TYPE_WALLTIME = 126,
+    REB_BINARY_FIELD_TYPE_PYTHON_UNIT_L = 130,
+    REB_BINARY_FIELD_TYPE_PYTHON_UNIT_M = 131,
+    REB_BINARY_FIELD_TYPE_PYTHON_UNIT_T = 132,
     REB_BINARY_FIELD_TYPE_HEADER = 1329743186,  // Corresponds to REBO (first characters of header text)
     REB_BINARY_FIELD_TYPE_SABLOB = 9998,        // SA Blob
     REB_BINARY_FIELD_TYPE_END = 9999,
@@ -763,6 +766,9 @@ struct reb_simulation {
     int track_energy_offset;        ///< Track energy change during collisions and ejections (default: 0).
     double energy_offset;           ///< Energy offset due to collisions and ejections (only calculated if track_energy_offset=1).
     double walltime;                ///< Walltime in seconds used by REBOUND for this simulation (integration only, not visualization, heartbeat function, etc).
+    uint32_t python_unit_l;         ///< Information only used for when working with units in python.
+    uint32_t python_unit_m;         ///< Information only used for when working with units in python.
+    uint32_t python_unit_t;         ///< Information only used for when working with units in python.
     /** @} */
 
     /**
@@ -1641,39 +1647,29 @@ struct reb_particle reb_derivatives_m_f(double G, struct reb_particle primary, s
  */
 /**
  * @brief Subtract particle p2 from particle p1 (p1 - p2).
- * @details Subtracts positions, velocities, accelerations and mass element by element. 
- * @param p1 First reb_particle.
+ * @details Subtracts positions, velocities, and mass element by element. 
+ * @param p1 First reb_particle (will be modified)
  * @param p2 Second reb_particle to subtract from p1.
  * @returns A new particle with no pointers (not in any simulation etc.) set.
  */
-struct reb_particle reb_particle_minus(struct reb_particle p1, struct reb_particle p2);
+void reb_particle_isub(struct reb_particle* p1, struct reb_particle* p2);
 
 /**
- * @brief Add particle p1 to particle p1.
- * @details Adds positions, velocities, accelerations and mass element by element. 
- * @param p1 First reb_particle.
+ * @brief Add particle p2 to particle p1.
+ * @details Adds positions, velocities, and mass element by element. 
+ * @param p1 First reb_particle (will be modified)
  * @param p2 Second reb_particle.
- * @returns A new particle with no pointers (not in any simulation etc.) set.
  */
-struct reb_particle reb_particle_plus(struct reb_particle p1, struct reb_particle p2);
+void reb_particle_iadd(struct reb_particle* p1, struct reb_particle* p2);
 
 /**
  * @brief Multiply a particle's members by a constant.
- * @details Multiplies particle's positions, velocities, accelerations and mass by a constant.
+ * @details Multiplies particle's positions, velocities, and mass by a constant.
  * @param p1 reb_particle to modify.
  * @param value Value by which to multiply particle's fields.
- * @returns A new particle with no pointers (not in any simulation etc.) set.
  */
-struct reb_particle reb_particle_multiply(struct reb_particle p1, double value);
+void reb_particle_imul(struct reb_particle* p1, double value);
 
-/**
- * @brief Divide a particle's members by a constant.
- * @details Divides particle's positions, velocities, accelerations and mass by a constant.
- * @param p1 reb_particle to modify.
- * @param value Value by which to divide particle's fields.
- * @returns A new particle with no pointers (not in any simulation etc.) set.
- */
-struct reb_particle reb_particle_divide(struct reb_particle p1, double value);
 /** @} */
 
 /**

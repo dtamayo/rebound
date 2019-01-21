@@ -1,7 +1,7 @@
-from ctypes import Structure, c_double, POINTER, c_float, c_int, c_uint, c_uint32, c_int64, c_long, c_ulong, c_ulonglong, c_void_p, c_char_p, CFUNCTYPE, byref, create_string_buffer, addressof, pointer, cast
+from ctypes import Structure, c_double, POINTER, c_uint32, c_float, c_int, c_uint, c_uint32, c_int64, c_long, c_ulong, c_ulonglong, c_void_p, c_char_p, CFUNCTYPE, byref, create_string_buffer, addressof, pointer, cast
 from . import clibrebound, Escape, NoParticles, Encounter, Collision, SimulationError, ParticleNotFound
 from .particle import Particle
-from .units import units_convert_particle, check_units, convert_G
+from .units import units_convert_particle, check_units, convert_G, hash_to_unit
 from .tools import hash as rebhash
 import math
 import os
@@ -537,45 +537,85 @@ class Simulation(Structure):
     def __add__(self, other):
         if not isinstance(other,Simulation):
             return NotImplemented
-        clibrebound.reb_simulation_add.restype = c_int
-        ret = clibrebound.reb_simulation_add(byref(self), byref(other))
+        c = self.copy()
+        return c.__iadd__(other)
+    
+    def __iadd__(self, other):
+        if not isinstance(other,Simulation):
+            return NotImplemented
+        clibrebound.reb_simulation_iadd.restype = c_int
+        ret = clibrebound.reb_simulation_iadd(byref(self), byref(other))
         if ret==-1:
             raise RuntimeError("Cannot add simulations. Check that the simulations have the same number of particles")
         return self
     
-    def __rmul__(self, other):
-        try:
-            other = float(other)
-        except:
+    def __sub__(self, other):
+        if not isinstance(other,Simulation):
             return NotImplemented
-        return self.multiply(other, other)
+        c = self.copy()
+        return c.__isub__(other)
+
+    def __isub__(self, other):
+        if not isinstance(other,Simulation):
+            return NotImplemented
+        clibrebound.reb_simulation_isub.restype = c_int
+        ret = clibrebound.reb_simulation_isub(byref(self), byref(other))
+        if ret==-1:
+            raise RuntimeError("Cannot subtract simulations. Check that the simulations have the same number of particles")
+        return self
     
     def __mul__(self, other):
         try:
             other = float(other)
         except:
             return NotImplemented
-        return self.multiply(other, other)
+        c = self.copy()
+        c.multiply(other, other)
+        return c
+    
+    def __imul__(self, other):
+        try:
+            other = float(other)
+        except:
+            return NotImplemented
+        self.multiply(other, other)
+        return self
+
+    def __rmul__(self, other):
+        try:
+            other = float(other)
+        except:
+            return NotImplemented
+        c = self.copy()
+        c.multiply(other, other)
+        return c
     
     def __div__(self, other):
         return self.__truediv__(other)
+    
+    def __idiv__(self, other):
+        return self.__itruediv__(other)
 
     def __truediv__(self, other):
         try:
             other = float(other)
         except:
             return NotImplemented
-        return self * (1./other)
-    
-    def __sub__(self, other):
-        if not isinstance(other,Simulation):
-            return NotImplemented
-        clibrebound.reb_simulation_subtract.restype = c_int
-        ret = clibrebound.reb_simulation_subtract(byref(self), byref(other))
-        if ret==-1:
-            raise RuntimeError("Cannot subtract simulations. Check that the simulations have the same number of particles")
-        return self
+        c = self.copy()
+        if other==0.:
+            raise ZeroDivisionError
+        c.multiply(1./other, 1./other)
+        return c
 
+    def __itruediv__(self, other):
+        try:
+            other = float(other)
+        except:
+            return NotImplemented
+        if other==0.:
+            raise ZeroDivisionError
+        self.multiply(1./other, 1./other)
+        return self
 
     def multiply(self, scalar_pos, scalar_vel):
         try:
@@ -583,8 +623,7 @@ class Simulation(Structure):
             scalar_vel = float(scalar_vel)
         except:
             raise ValueError("Cannot multiply simulation with non-scalars.")
-        clibrebound.reb_simulation_multiply(byref(self), c_double(scalar_pos), c_double(scalar_vel))
-        return self
+        clibrebound.reb_simulation_imul(byref(self), c_double(scalar_pos), c_double(scalar_vel))
 
 
 # Status functions
@@ -934,25 +973,22 @@ class Simulation(Structure):
         >>> sim.units = ('yr', 'AU', 'Msun')
 
         """
-        if not hasattr(self, '_units'):
-            self._units = {'length':None, 'mass':None, 'time':None}
-
-        return self._units
+        
+        return {'length':hash_to_unit(self.python_unit_l), 'mass':hash_to_unit(self.python_unit_m), 'time':hash_to_unit(self.python_unit_t)}
 
     @units.setter
     def units(self, newunits):
-        if not hasattr(self, '_units'):
-            self._units = {'length':None, 'mass':None, 'time':None}
         newunits = check_units(newunits)        
         if self.N>0: # some particles are loaded
             raise AttributeError("Error:  You cannot set the units after populating the particles array.  See ipython_examples/Units.ipynb.")
         self.update_units(newunits) 
 
     def update_units(self, newunits): 
-        self._units['length'] = newunits[0] 
-        self._units['time'] = newunits[1] 
-        self._units['mass'] = newunits[2] 
-        self.G = convert_G(self._units['length'], self._units['time'], self._units['mass'])
+        clibrebound.reb_hash.restype = c_uint32
+        self.python_unit_l = clibrebound.reb_hash(c_char_p(newunits[0].encode("ascii")))
+        self.python_unit_t = clibrebound.reb_hash(c_char_p(newunits[1].encode("ascii")))
+        self.python_unit_m = clibrebound.reb_hash(c_char_p(newunits[2].encode("ascii")))
+        self.G = convert_G(newunits)
 
     def convert_particle_units(self, *args): 
         """
@@ -963,11 +999,11 @@ class Simulation(Structure):
         ----------
         3 strings corresponding to units of time, length and mass.  Can be in any order and aren't case sensitive.        You can add new units to rebound/rebound/units.py
         """
-        if None in self.units.values():
+        if self.python_unit_l == 0 or self.python_unit_m == 0 or self.python_unit_t == 0:
             raise AttributeError("Must set sim.units before calling convert_particle_units in order to know what units to convert from.")
         new_l, new_t, new_m = check_units(args)
         for p in self.particles:
-            units_convert_particle(p, self._units['length'], self._units['time'], self._units['mass'], new_l, new_t, new_m)
+            units_convert_particle(p, hash_to_unit(self.python_unit_l), hash_to_unit(self.python_unit_t), hash_to_unit(self.python_unit_m), new_l, new_t, new_m)
         self.update_units((new_l, new_t, new_m))
 
 # Variational Equations
@@ -1079,10 +1115,10 @@ class Simulation(Structure):
                 for p in particle:
                     self.add(p, **kwargs)
             elif isinstance(particle,str):
-                if None in self.units.values():
+                if self.python_unit_l == 0 or self.python_unit_m == 0 or self.python_unit_t == 0:
                     self.units = ('AU', 'yr2pi', 'Msun')
                 self.add(horizons.getParticle(particle, **kwargs), hash=particle)
-                units_convert_particle(self.particles[-1], 'km', 's', 'kg', self._units['length'], self._units['time'], self._units['mass'])
+                units_convert_particle(self.particles[-1], 'km', 's', 'kg', hash_to_unit(self.python_unit_l), hash_to_unit(self.python_unit_t), hash_to_unit(self.python_unit_m))
             else: 
                 raise ValueError("Argument passed to add() not supported.")
         else: 
@@ -1769,6 +1805,9 @@ Simulation._fields_ = [
                 ("track_energy_offset", c_int),
                 ("energy_offset", c_double),
                 ("walltime", c_double),
+                ("python_unit_t",c_uint32),
+                ("python_unit_l",c_uint32),
+                ("python_unit_m",c_uint32),
                 ("boxsize", reb_vec3d),
                 ("boxsize_max", c_double),
                 ("root_size", c_double),
