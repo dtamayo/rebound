@@ -20,22 +20,24 @@ import types
 ### The following enum and class definitions need to
 ### consitent with those in rebound.h
         
-INTEGRATORS = {"ias15": 0, "whfast": 1, "sei": 2, "leapfrog": 4, "hermes": 5, "none": 7, "janus": 8, "mercurius": 9}
+INTEGRATORS = {"ias15": 0, "whfast": 1, "sei": 2, "leapfrog": 4, "none": 7, "janus": 8, "mercurius": 9}
 BOUNDARIES = {"none": 0, "open": 1, "periodic": 2, "shear": 3}
 GRAVITIES = {"none": 0, "basic": 1, "compensated": 2, "tree": 3, "mercurius": 4}
 COLLISIONS = {"none": 0, "direct": 1, "tree": 2, "mercurius": 3, "line": 4}
 VISUALIZATIONS = {"none": 0, "opengl": 1, "webgl": 2}
 COORDINATES = {"jacobi": 0, "democraticheliocentric": 1, "whds": 2}
+
+# Format: Majorerror, id, message
 BINARY_WARNINGS = [
-    ("Cannot read binary file. Check filename and file contents.", 1),
-    ("Binary file was saved with a different version of REBOUND. Binary format might have changed.", 2),
-    ("You have to reset function pointers after creating a reb_simulation struct with a binary file.", 4),
-    ("Binary file might be corrupted. Number of particles found does not match particle number expected.", 8),
-    ("Error while reading binary file (file was closed).", 16),
-    ("Index out of range.", 32),
-    ("Error while trying to seek file.", 64),
-    ("Encountered unkown field in file. File might have been saved with a different version of REBOUND.", 128),
-    ("Integrator type is not supported by this simulation archive version.", 256)
+    (True,  1, "Cannot read binary file. Check filename and file contents."),
+    (False, 2, "Binary file was saved with a different version of REBOUND. Binary format might have changed."),
+    (False, 4, "You have to reset function pointers after creating a reb_simulation struct with a binary file."),
+    (False, 8, "Binary file might be corrupted. Number of particles found does not match particle number expected."),
+    (True,  16, "Error while reading binary file (file was closed).",),
+    (True,  32, "Index out of range.",),
+    (True,  64, "Error while trying to seek file.",),
+    (False, 128, "Encountered unkown field in file. File might have been saved with a different version of REBOUND."),
+    (True,  256, "Integrator type is not supported by this simulation archive version.")
 ]
 
 class reb_hash_pointer_pair(Structure):
@@ -117,7 +119,10 @@ class reb_simulation_integrator_ias15(Structure):
                 ("csb", reb_dp7),
                 ("e", reb_dp7),
                 ("br", reb_dp7),
-                ("er", reb_dp7)]
+                ("er", reb_dp7),
+                ("map", POINTER(c_int)),
+                ("map_allocated_n", c_int),
+                ]
 
 class reb_simulation_integrator_whfast(Structure):
     """
@@ -291,86 +296,76 @@ class Simulation(Structure):
     >>> sim.t = 0.                  # Sets the current simulation time (default 0)
     >>> print(sim.N)                # Gets the current number of particles
     >>> print(sim.N_active)         # Gets the current number of active particles
+       
+    By calling rebound.Simulation() as shown above, you create a new simulation object
+    The following example creates a simulation, saves it to a file and then creates
+    a copy of the simulation store in the binary file.
+
+    >>> sim = rebound.Simulation()
+    >>> sim.add(m=1.)
+    >>> sim.add(m=1.e-3,x=1.,vy=1.)
+    >>> sim.save("simulation.bin")
+    >>> sim_copy = rebound.Simulation("simulation.bin")
+    
+    Similarly, you can create a simulation, from a simulation archive
+    by specifying the snapshot you want to load. 
+
+    >>> sim = rebound.Simulation("archive.bin", 34)
+    
+    or 
+    
+    >>> sim = rebound.Simulation(filename="archive.bin", snapshot=34)
 
     """
-    def __init__(self):
-        clibrebound.reb_init_simulation(byref(self))
+    def __new__(cls, *args, **kw):
+        # Handle arguments
+        filename = None
+        if len(args)>0:
+            filename = args[0]
+        if "filename" in kw:
+            filename = kw["filename"]
+        snapshot = -1
+        if len(args)>1:
+            snapshot = args[1]
+        if "snapshot" in kw:
+            snapshot = kw["snapshot"]
+       
+        # Create simulation
+        if filename==None:
+            # Create a new simulation
+            sim = super(Simulation,cls).__new__(cls)
+            clibrebound.reb_init_simulation(byref(sim))
+            return sim
+        else:
+            # Recreate exisitng simulation 
+            sa = SimulationArchive(filename,process_warnings=False)
+            sim = super(Simulation,cls).__new__(cls)
+            clibrebound.reb_init_simulation(byref(sim))
+            w = sa.warnings # warnings will be appended to previous warnings (as to not repeat them) 
+            clibrebound.reb_create_simulation_from_simulationarchive_with_messages(byref(sim),byref(sa),c_int(snapshot),byref(w))
+            for majorerror, value, message in BINARY_WARNINGS:
+                if w.value & value:
+                    if majorerror:
+                        raise RuntimeError(message)
+                    else:  
+                        # Just a warning
+                        warnings.warn(message, RuntimeWarning)
+            return sim
+
+    def __init__(self,filename=None,snapshot=None):
         self.save_messages = 1 # Warnings will be checked within python
     
     @classmethod
     def from_archive(cls, filename,snapshot=-1):
-        """
-        Loads a REBOUND simulation from a SimulationArchive binary file.
-        It uses the last snapshot in that file unless otherwise specified. 
-        This function is only really useful for restarting a simulation. 
-        For full access to the Simulation Archive, use the 
-        SimulationArchive class.
-        
-        After loading the REBOUND simulation from file, you need to reset 
-        any function pointers manually. Please read all documentation 
-        before using this function as it has several requirements to work
-        correctly.
-        
-        Arguments
-        ---------
-        filename : str
-            Filename of the binary file.
-        snapshot : int (optional)
-            If given, load the snapshot with this index. Otherwise 
-            load last snapshot.
-        
-        Returns
-        ------- 
-        A rebound.Simulation object.
-        
-        """
-        w = c_int(0)
-        sim = Simulation()
-        sa = SimulationArchive(filename)
-        clibrebound.reb_create_simulation_from_simulationarchive_with_messages(byref(sim),byref(sa),snapshot,byref(w))
-        if w.value & (1+16+32+64+256) :     # Major error
-            raise ValueError(BINARY_WARNINGS[0])
-        for message, value in BINARY_WARNINGS:  # Just warnings
-            if w.value & value:
-                warnings.warn(message, RuntimeWarning)
-        return sim
+        """ rebound.Simulation.from_archive(filename,snapshot) is deprecated and will be removed in the futute. Use rebound.Simulation(filename,snapshot) instead """
+        warnings.warn( "rebound.Simulation.from_archive(filename,snapshot) is deprecated and will be removed in the future. Use rebound.Simulation(filename,snapshot) instead", FutureWarning)
+        return cls(filename=filename,snapshot=snapshot)
 
     @classmethod
     def from_file(cls, filename):
-        """
-        Loads a REBOUND simulation from a file.
-        
-        After loading the REBOUND simulation from file, you need to reset any function pointers manually.
-        
-        Arguments
-        ---------
-        filename : str
-            Filename of the binary file.
-        
-        Returns
-        ------- 
-        A rebound.Simulation object.
-        
-        Examples
-        --------
-        The following example creates a simulation, saves it to a file and then creates
-        a copy of the simulation store in the binary file.
-
-        >>> sim = rebound.Simulation()
-        >>> sim.add(m=1.)
-        >>> sim.add(m=1.e-3,x=1.,vy=1.)
-        >>> sim.save("simulation.bin")
-        >>> sim_copy = rebound.Simulation.from_file("simulation.bin")
-        """
-        w = c_int(0)
-        sim = Simulation()
-        clibrebound.reb_create_simulation_from_binary_with_messages(byref(sim), c_char_p(filename.encode("ascii")),byref(w))
-        if w.value & (1+16+32+64+256) :     # Major error
-            raise ValueError(BINARY_WARNINGS[0])
-        for message, value in BINARY_WARNINGS:  # Just warnings
-            if w.value & value and value!=1:
-                warnings.warn(message, RuntimeWarning)
-        return sim
+        """ rebound.Simulation.from_file(filename) is deprecated and will be removed in the futute. Use rebound.Simulation(filename) instead """
+        warnings.warn( "rebound.Simulation.from_file(filename) is deprecated and will be removed in the future. Use rebound.Simulation(filename) instead", FutureWarning)
+        return cls(filename=filename)
     
     def copy(self):
         """
@@ -385,11 +380,13 @@ class Simulation(Structure):
         w = c_int(0)
         sim = Simulation()
         clibrebound._reb_copy_simulation_with_messages(byref(sim),byref(self),byref(w))
-        if w.value & (1+16+32+64+256) :     # Major error
-            raise ValueError(BINARY_WARNINGS[0])
-        for message, value in BINARY_WARNINGS:  # Just warnings
+        for majorerror, value, message in BINARY_WARNINGS:
             if w.value & value:
-                warnings.warn(message, RuntimeWarning)
+                if majorerror:
+                    raise RuntimeError(message)
+                else:  
+                    # Just a warning
+                    warnings.warn(message, RuntimeWarning)
         return sim
 
     def getWidget(self,**kwargs):
@@ -449,7 +446,7 @@ class Simulation(Structure):
 
 
 # Simulation Archive tools
-    def automateSimulationArchive(self, filename, interval=None, walltime=None, deletefile=False):
+    def automateSimulationArchive(self, filename, interval=None, walltime=None, step=None, deletefile=False):
         """
         This function automates taking snapshots during a simulationusing the Simulation Archive.
         Instead of using this function, one can also call simulationarchive_snapshot() manually
@@ -465,6 +462,9 @@ class Simulation(Structure):
         walltime : float
             Interval between outputs in wall time (seconds). 
             Useful when using IAS15 with adaptive timesteps. 
+        step : int
+            Interval between outputs in number of timesteps. 
+            Useful when outputs need to be spaced exactly.
         
         Examples
         --------
@@ -485,8 +485,9 @@ class Simulation(Structure):
         >>> sim = sa[-1]  # get the last snapshot in the SA file
 
         """
-        if interval is None and walltime is None:
-            raise AttributeError("Need to specify either interval or walltime.")
+        modes = sum(1 for i in [interval, walltime,step] if i != None)
+        if modes != 1:
+            raise AttributeError("Need to specify either interval, walltime, or step")
         if deletefile and os.path.isfile(filename):
             os.remove(filename)
         self.simulationarchive_next = 0.
@@ -494,6 +495,8 @@ class Simulation(Structure):
             clibrebound.reb_simulationarchive_automate_interval(byref(self), c_char_p(filename.encode("ascii")), c_double(interval))
         if walltime:
             clibrebound.reb_simulationarchive_automate_walltime(byref(self), c_char_p(filename.encode("ascii")), c_double(walltime))
+        if step:
+            clibrebound.reb_simulationarchive_automate_step(byref(self), c_char_p(filename.encode("ascii")), c_ulonglong(step))
         self.process_messages()
 
     def simulationarchive_snapshot(self, filename):
@@ -801,7 +804,6 @@ class Simulation(Structure):
         - ``'whfast'``
         - ``'sei'``
         - ``'leapfrog'``
-        - ``'hermes'``
         - ``'janus'``
         - ``'mercurius'``
         - ``'bs'``
@@ -1700,49 +1702,24 @@ class reb_simulation_integrator_janus(Structure):
                 ]
 
 class reb_simulation_integrator_mercurius(Structure):
-    _fields_ = [("rcrit", c_double),
+    _fields_ = [("L", CFUNCTYPE(c_double, POINTER(Simulation), c_double, c_double)),
+                ("hillfac", c_double),
                 ("recalculate_coordinates_this_timestep", c_uint),
-                ("recalculate_rhill_this_timestep", c_uint),
+                ("recalculate_dcrit_this_timestep", c_uint),
                 ("safe_mode", c_uint),
-                ("keep_unsynchronized", c_uint),
                 ("_is_synchronized", c_uint),
-                ("_mode", c_uint),
+                ("mode", c_uint),
                 ("_encounterN", c_uint),
-                ("_globalN", c_uint),
-                ("_globalNactive", c_int),
+                ("_encounterNactive", c_uint),
                 ("_allocatedN", c_uint),
-                ("_rhillallocatedN", c_uint),
-                ("_encounterAllocatedN", c_uint),
-                ("_m0", c_double),
-                ("_rhill", c_void_p),
-                ("_rhillias15", c_void_p),
-                ("_encounterIndicies", c_void_p),
-                ("_encounterParticles", POINTER(Particle)),
-                ("_p_hold", POINTER(Particle)),
-                ]
-
-class reb_simulation_integrator_hermes(Structure):
-    _fields_ = [("mini", POINTER(Simulation)),
-                ("global", POINTER(Simulation)),
-                ("hill_switch_factor", c_double),
-                ("solar_switch_factor", c_double),
-                ("adaptive_hill_switch_factor", c_int),
-                ("mini_active", c_int),
-                ("_current_hill_switch_factor", c_double),
-                ("_energy_before_timestep", c_double),
-                ("_collision_this_global_dt", c_int),
-                ("_global_index_from_mini_index", POINTER(c_int)),
-                ("_global_index_from_mini_index_N",c_int),
-                ("_global_index_from_mini_index_Nmax",c_int),
-                ("_is_in_mini", POINTER(c_int)),
-                ("_is_in_mini_Nmax", c_int),
-                ("_a_i", POINTER(c_double)),
-                ("_a_f", POINTER(c_double)),
-                ("_a_Nmax", c_int),
-                ("_timestep_too_large_warning", c_int),
-                ("_steps", c_ulonglong),
-                ("_steps_miniactive", c_ulonglong),
-                ("_steps_miniN", c_ulonglong),
+                ("_allocatedN_additionalforces", c_uint),
+                ("_dcrit_allocatedN", c_uint),
+                ("_dcrit", POINTER(c_double)),
+                ("_particles_backup", POINTER(Particle)),
+                ("_particles_backup_additionalforces", POINTER(Particle)),
+                ("_encounter_map", POINTER(c_int)),
+                ("_com_pos", reb_vec3d),
+                ("_com_vel", reb_vec3d),
                 ]
 
 class timeval(Structure):
@@ -1773,6 +1750,7 @@ Simulation._fields_ = [
                 ("softening", c_double),
                 ("dt", c_double),
                 ("dt_last_done", c_double),
+                ("steps_done", c_ulonglong),
                 ("N", c_int),
                 ("N_var", c_int),
                 ("var_config_N", c_int),
@@ -1838,7 +1816,9 @@ Simulation._fields_ = [
                 ("simulationarchive_size_snapshot", c_long),
                 ("simulationarchive_auto_interval", c_double),
                 ("simulationarchive_auto_walltime", c_double),
+                ("simulationarchive_auto_step", c_ulonglong),
                 ("simulationarchive_next", c_double),
+                ("simulationarchive_next_step", c_ulonglong),
                 ("_simulationarchive_filename", c_char_p),
                 ("_visualization", c_int),
                 ("_collision", c_int),
@@ -1848,7 +1828,6 @@ Simulation._fields_ = [
                 ("ri_sei", reb_simulation_integrator_sei), 
                 ("ri_whfast", reb_simulation_integrator_whfast),
                 ("ri_ias15", reb_simulation_integrator_ias15),
-                ("ri_hermes", reb_simulation_integrator_hermes),
                 ("ri_mercurius", reb_simulation_integrator_mercurius),
                 ("ri_janus", reb_simulation_integrator_janus),
                 ("_additional_forces", CFUNCTYPE(None,POINTER(Simulation))),
