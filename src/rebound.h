@@ -1883,6 +1883,13 @@ int reb_add_var_2nd_order(struct reb_simulation* const r, int testparticle, int 
  */
 void reb_tools_megno_init(struct reb_simulation* const r);
 
+/** 
+ * @brief Init the MEGNO particles, enable MEGNO calculation, and specify a seed for the random number generation.
+ * @param r The rebound simulation to be considered
+ * @param seed The seed to use for the random number generator
+ */
+void reb_tools_megno_init_seed(struct reb_simulation* const r, unsigned int seed);
+
 /**
  * @brief Get the current MEGNO value
  * @param r The rebound simulation to be considered
@@ -1950,6 +1957,15 @@ void reb_whfast_kepler_step(const struct reb_simulation* const r, const double _
 void reb_whfast_com_step(const struct reb_simulation* const r, const double _dt); ///< Internal function
 void reb_integrator_ias15_part2(struct reb_simulation* r);              ///< Internal function used to call a specific integrator
 void reb_integrator_ias15_reset(struct reb_simulation* r);              ///< Internal function used to call a specific integrator
+int reb_integrator_whfast_init(struct reb_simulation* const r);    ///< Internal function to check errors and allocate memory if needed
+
+/** 
+ * @brief This function updates the acceleration on all particles. 
+ * @details It uses the current position and velocity data in the 
+ * (struct reb_particle*) particles structure.
+ */
+void reb_update_acceleration(struct reb_simulation* r);
+
 /** @endcond */
 
 /**

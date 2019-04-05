@@ -62,7 +62,7 @@
 const int reb_max_messages_length = 1024;   // needs to be constant expression for array size
 const int reb_max_messages_N = 10;
 const char* reb_build_str = __DATE__ " " __TIME__;  // Date and time build string. 
-const char* reb_version_str = "3.8.1";         // **VERSIONLINE** This line gets updated automatically. Do not edit manually.
+const char* reb_version_str = "3.8.2";         // **VERSIONLINE** This line gets updated automatically. Do not edit manually.
 const char* reb_githash_str = STRINGIFY(GITHASH);             // This line gets updated automatically. Do not edit manually.
 
 static int reb_error_message_waiting(struct reb_simulation* const r);
@@ -571,7 +571,10 @@ int reb_check_exit(struct reb_simulation* const r, const double tmax, double* la
         usleep(1000);
     }
     const double dtsign = copysign(1.,r->dt);   // Used to determine integration direction
-    if (r->status>=0 || reb_error_message_waiting(r)){
+    if (reb_error_message_waiting(r)){
+        r->status = REB_EXIT_ERROR;
+    }
+    if (r->status>=0){
         // Exit now.
     }else if(tmax!=INFINITY){
         if(r->exact_finish_time==1){
