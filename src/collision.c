@@ -46,7 +46,7 @@
 static void reb_tree_get_nearest_neighbour_in_cell(struct reb_simulation* const r, int* collisions_N, struct reb_ghostbox gb, struct reb_ghostbox gbunmod, int ri, double p1_r,  double* nearest_r2, struct reb_collision* collision_nearest, struct reb_treecell* c);
 
 void reb_collision_search(struct reb_simulation* const r){
-	const int N = r->N;
+	const int N = r->N-r->N_var;
 	int collisions_N = 0;
 	const struct reb_particle* const particles = r->particles;
 	switch (r->collision){
@@ -130,7 +130,7 @@ void reb_collision_search(struct reb_simulation* const r){
 			int nghostycol = (r->nghosty>1?1:r->nghosty);
 			int nghostzcol = (r->nghostz>1?1:r->nghostz);
 			const struct reb_particle* const particles = r->particles;
-			const int N = r->N;
+			const int N = r->N-r->N_var;
 			// Loop over all particles
 #pragma omp parallel for schedule(guided)
 			for (int i=0;i<N;i++){
@@ -196,7 +196,7 @@ void reb_collision_search(struct reb_simulation* const r){
             // Remove particles
             if (outcome & 1){
                 // Remove p1
-                if (c.p2==r->N-1 && !(r->tree_root)){
+                if (c.p2==r->N-r->N_var-1 && !(r->tree_root)){
                     // Particles swapped
                     c.p2 = c.p1;
                 }
@@ -209,10 +209,10 @@ void reb_collision_search(struct reb_simulation* const r){
                         r->collisions[j].p2 = -1;
                         // Will be skipped.
                     }
-                    if (cp.p1==r->N){
+                    if (cp.p1==r->N-r->N_var){
                         r->collisions[j].p1 = c.p1;
                     }
-                    if (cp.p2==r->N){
+                    if (cp.p2==r->N-r->N_var){
                         r->collisions[j].p2 = c.p1;
                     }
                 }
@@ -228,10 +228,10 @@ void reb_collision_search(struct reb_simulation* const r){
                         r->collisions[j].p2 = -1;
                         // Will be skipped.
                     }
-                    if (cp.p1==r->N){
+                    if (cp.p1==r->N-r->N_var){
                         r->collisions[j].p1 = c.p2;
                     }
-                    if (cp.p2==r->N){
+                    if (cp.p2==r->N-r->N_var){
                         r->collisions[j].p2 = c.p2;
                     }
                 }

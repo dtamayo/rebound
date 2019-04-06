@@ -579,7 +579,18 @@ void reb_integrator_whfast_part2(struct reb_simulation* const r){
     
     if (r->calculate_megno){
         // Need to have x,v,a synchronized to calculate ddot/d for MEGNO. 
-        reb_integrator_whfast_synchronize(r);
+        const int N_real = r->N-r->N_var;
+        struct reb_particle* sync_pj  = NULL;
+        if (ri_whfast->keep_unsynchronized){ // cache the p_j and set back at the end
+            sync_pj = malloc(sizeof(struct reb_particle)*r->N);
+            memcpy(sync_pj,r->ri_whfast.p_j,r->N*sizeof(struct reb_particle));
+            ri_whfast->keep_unsynchronized=0; // synchronize will revert the p_j to midstep if ke    ep_unsync=0. 
+            reb_integrator_whfast_synchronize(r);
+            ri_whfast->keep_unsynchronized=1; // Manually avoid synchronize reverting the p_j and     do it ourselves when we're done
+        }
+        else{
+            reb_integrator_whfast_synchronize(r);
+        }
         // Add additional acceleration term for MEGNO calculation
         for (int v=0;v<r->var_config_N;v++){
             struct reb_variational_configuration const vc = r->var_config[v];
@@ -628,6 +639,12 @@ void reb_integrator_whfast_part2(struct reb_simulation* const r){
         // Update MEGNO in middle of timestep as we need synchonized x/v/a.
         double dY = r->dt * 2. * r->t * reb_tools_megno_deltad_delta(r);
         reb_tools_megno_update(r, dY);
+
+        if (ri_whfast->keep_unsynchronized){
+            memcpy(r->ri_whfast.p_j,sync_pj,r->N*sizeof(struct reb_particle));
+            free(sync_pj);
+            ri_whfast->is_synchronized=0;
+        }
     }
 }
     
