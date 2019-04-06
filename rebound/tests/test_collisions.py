@@ -134,6 +134,14 @@ class TestCollisions(unittest.TestCase):
         sim.integrate(2.*sim.dt)
         self.assertLess(sim.N,25)
 
+    def test_var_nan(self):
+        sim = rebound.Simulation()
+        sim.add(m=1.)
+        sim.add(a=1.)
+        sim.init_megno()
+        sim.particles[3].x = np.nan
+        sim.collision="direct"
+        sim.integrate(5) 
 
 if __name__ == "__main__":
     unittest.main()
