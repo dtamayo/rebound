@@ -13,6 +13,8 @@ class TestLineCollisions(unittest.TestCase):
         sim.dt = 10
         sim.add(r=1,x=0)
         sim.add(r=1,x=3,vx=-1)
+        sim.init_megno()
+        sim.particles[-1].x = np.nan # test that collisions with variational particles not being checked
         sim.integrate(10)
     def test_line_find(self):
         # Should find the collision
@@ -22,6 +24,8 @@ class TestLineCollisions(unittest.TestCase):
         sim.dt = 10
         sim.add(r=1,x=0)
         sim.add(r=1,x=3,vx=-1)
+        sim.init_megno()
+        sim.particles[-1].x = np.nan
         with self.assertRaises(rebound.Collision) as context:
             sim.integrate(10)
     def test_line_miss_overlap(self):
@@ -32,6 +36,8 @@ class TestLineCollisions(unittest.TestCase):
         sim.dt = 10
         sim.add(r=1,x=0)
         sim.add(r=1,x=1,vx=-1)
+        sim.init_megno()
+        sim.particles[-1].x = np.nan
         sim.integrate(10)
     def test_line_find_overlap(self):
         # Should find the collision because not overlapping at t=0, only at end
@@ -41,6 +47,8 @@ class TestLineCollisions(unittest.TestCase):
         sim.dt = 10
         sim.add(r=1,x=0)
         sim.add(r=1,x=11,vx=-1)
+        sim.init_megno()
+        sim.particles[-1].x = np.nan
         with self.assertRaises(rebound.Collision) as context:
             sim.integrate(10)
 
@@ -133,15 +141,6 @@ class TestCollisions(unittest.TestCase):
         sim.integrate(sim.dt)
         sim.integrate(2.*sim.dt)
         self.assertLess(sim.N,25)
-
-    def test_var_nan(self):
-        sim = rebound.Simulation()
-        sim.add(m=1.)
-        sim.add(a=1.)
-        sim.init_megno()
-        sim.particles[3].x = np.nan
-        sim.collision="direct"
-        sim.integrate(5) 
 
 if __name__ == "__main__":
     unittest.main()
