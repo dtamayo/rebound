@@ -128,7 +128,7 @@ class SimulationArchive(Structure):
             self.setup(sim, *self.setup_args)
         if self.rebxfilename:
             import reboundx
-            rebx = reboundx.Extras.from_file(sim, self.rebxfilename)
+            rebx = reboundx.Extras(sim, self.rebxfilename)
         for majorerror, value, message in BINARY_WARNINGS:
             if w.value & value:
                 if majorerror:
@@ -222,7 +222,7 @@ class SimulationArchive(Structure):
             self.setup(sim, *self.setup_args)
         if self.rebxfilename:
             import reboundx
-            rebx = reboundx.Extras.from_file(sim, self.rebxfilename)
+            rebx = reboundx.Extras(sim, self.rebxfilename)
 
         if mode=='snapshot':
             if sim.integrator=="whfast" and sim.ri_whfast.safe_mode == 1:
