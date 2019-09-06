@@ -951,22 +951,22 @@ class Simulation(Structure):
         return s
         
 # MEGNO
-    def init_megno(self):
+    def init_megno(self, seed=None):
         """
         This function initialises the chaos indicator MEGNO particles and enables their integration.
-
         MEGNO is short for Mean Exponential Growth of Nearby orbits. It can be used to test
         if a system is chaotic or not. In the backend, the integrator is integrating an additional set
         of particles using the variational equation. Note that variational equations are better 
         suited for this than shadow particles. MEGNO is currently only supported in the IAS15 
         and WHFast integrators.
-
         This function also needs to be called if you are interested in the Lyapunov exponent as it is
         calculate with the help of MEGNO. See Rein and Tamayo 2015 for details on the implementation.
-
         For more information on MENGO see e.g. http://dx.doi.org/10.1051/0004-6361:20011189
         """
-        clibrebound.reb_tools_megno_init(byref(self))
+        if seed is None:
+            clibrebound.reb_tools_megno_init(byref(self))
+        else:
+            clibrebound.reb_tools_megno_init_seed(byref(self), c_uint(seed))
     
     def calculate_megno(self):
         """

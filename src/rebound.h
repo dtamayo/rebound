@@ -1704,6 +1704,8 @@ int reb_add_var_1st_order(struct reb_simulation* const r, int testparticle);
  **/
 int reb_add_var_2nd_order(struct reb_simulation* const r, int testparticle, int index_1st_order_a, int index_1st_order_b);
 
+void reb_tools_megno_init_seed(struct reb_simulation* const r, unsigned int seed);
+
 /** 
  * @brief Init the MEGNO particles, enable MEGNO calculation
  * @param r The rebound simulation to be considered
