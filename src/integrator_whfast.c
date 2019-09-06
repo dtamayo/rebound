@@ -581,9 +581,12 @@ void reb_integrator_whfast_part2(struct reb_simulation* const r){
         // Need to have x,v,a synchronized to calculate ddot/d for MEGNO. 
         const int N_real = r->N-r->N_var;
         struct reb_particle* sync_pj  = NULL;
+        struct reb_particle* sync_p  = NULL;
         if (ri_whfast->keep_unsynchronized){ // cache the p_j and set back at the end
             sync_pj = malloc(sizeof(struct reb_particle)*r->N);
             memcpy(sync_pj,r->ri_whfast.p_j,r->N*sizeof(struct reb_particle));
+            sync_p = malloc(sizeof(struct reb_particle)*r->N);
+            memcpy(sync_p,r->particles,r->N*sizeof(struct reb_particle));
             ri_whfast->keep_unsynchronized=0; // synchronize will revert the p_j to midstep if ke    ep_unsync=0. 
             reb_integrator_whfast_synchronize(r);
             ri_whfast->keep_unsynchronized=1; // Manually avoid synchronize reverting the p_j and     do it ourselves when we're done
@@ -642,6 +645,8 @@ void reb_integrator_whfast_part2(struct reb_simulation* const r){
 
         if (ri_whfast->keep_unsynchronized){
             memcpy(r->ri_whfast.p_j,sync_pj,r->N*sizeof(struct reb_particle));
+            memcpy(r->particles,sync_p,r->N*sizeof(struct reb_particle));
+            free(sync_p);
             free(sync_pj);
             ri_whfast->is_synchronized=0;
         }
