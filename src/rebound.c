@@ -64,7 +64,7 @@
 const int reb_max_messages_length = 1024;   // needs to be constant expression for array size
 const int reb_max_messages_N = 10;
 const char* reb_build_str = __DATE__ " " __TIME__;  // Date and time build string. 
-const char* reb_version_str = "3.9.0";         // **VERSIONLINE** This line gets updated automatically. Do not edit manually.
+const char* reb_version_str = "3.10.2";         // **VERSIONLINE** This line gets updated automatically. Do not edit manually.
 const char* reb_githash_str = STRINGIFY(GITHASH);             // This line gets updated automatically. Do not edit manually.
 
 static int reb_error_message_waiting(struct reb_simulation* const r);
@@ -549,8 +549,7 @@ void reb_init_simulation(struct reb_simulation* r){
     r->ri_whfast.recalculate_coordinates_but_not_synchronized_warning = 0;
     
     // ********** SABA
-    r->ri_saba.k = 1;
-    r->ri_saba.corrector = 0;
+    r->ri_saba.type = REB_SABA_10_6_4;
     r->ri_saba.safe_mode = 1;
     r->ri_saba.is_synchronized = 1;
     
@@ -820,6 +819,13 @@ enum REB_STATUS reb_integrate(struct reb_simulation* const r, double tmax){
     }
     return r->status;
 }
+
+  
+#ifdef OPENMP
+void reb_omp_set_num_threads(int num_threads){
+    omp_set_num_threads(num_threads);
+}
+#endif // OPENMP
 
 const char* reb_logo[26] = {
 "          _                           _  ",

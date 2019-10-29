@@ -3,6 +3,19 @@ Changelog
 
 This changelog only includes the most important changes in recent updates. For a full log of all changes, please refer to git.
 
+Version 3.10.2
+--------------
+* Updates to OrbitPlot. Includes better layout of plot and some syntax changes. See OrbitPlot documentation for the new syntax.
+
+Version 3.10.1
+--------------
+* Small syntax changes for SABA integrator family. 
+* Includes high order integrators by Blanes et al. (2013).
+
+Version 3.10.0
+--------------
+* Changes for the new version of REBOUNDx. 
+
 Version 3.9.0
 --------------
 * Added new high order symplectic integrators from Wisdom et al. (1996) and Laskar & Robutel (2001). The implementation of these integrators are discussed in Rein, Tamayo & Brown (2019). 
