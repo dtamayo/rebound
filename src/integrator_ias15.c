@@ -80,10 +80,6 @@ static void circ_orbits(const int i, const double t, struct reb_particle* partic
         particles[i].vx = -mfac*sin(n*t);
         particles[i].vy = mfac*cos(n*t);
         particles[i].vz = 0.;
-        /*particles[i].x = 0.;
-        particles[i].y = 0.;
-        particles[i].vx = 0.;
-        particles[i].vy = 0.;*/
     }
 
     if (i==1){
@@ -94,10 +90,6 @@ static void circ_orbits(const int i, const double t, struct reb_particle* partic
         particles[i].vx = -mfac*sin(n*t);
         particles[i].vy = mfac*cos(n*t);
         particles[i].vz = 0.;
-        /*particles[i].x = 0.;
-        particles[i].y = 0.;
-        particles[i].vx = 0.;
-        particles[i].vy = 0.;*/
     }
 }
 /////////////////////////
