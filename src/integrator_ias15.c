@@ -73,31 +73,31 @@ static void predict_next_step(double ratio, int kstart3, int N3,  const struct r
 static void circ_orbits(const int i, const double t, struct reb_particle* particles){
     const double n = 1.; 
     if (i==0){
-        /*const double mfac = -particles[1].m/(particles[0].m+particles[1].m);
+        const double mfac = -particles[1].m/(particles[0].m+particles[1].m);
         particles[i].x = mfac*cos(n*t);
         particles[i].y = mfac*sin(n*t);
         particles[i].z = 0.;
         particles[i].vx = -mfac*sin(n*t);
         particles[i].vy = mfac*cos(n*t);
-        particles[i].vz = 0.;*/
-        particles[i].x = 0.;
+        particles[i].vz = 0.;
+        /*particles[i].x = 0.;
         particles[i].y = 0.;
         particles[i].vx = 0.;
-        particles[i].vy = 0.;
+        particles[i].vy = 0.;*/
     }
 
     if (i==1){
-        /*const double mfac = particles[0].m/(particles[0].m+particles[1].m);
+        const double mfac = particles[0].m/(particles[0].m+particles[1].m);
         particles[i].x = mfac*cos(n*t);
         particles[i].y = mfac*sin(n*t);
         particles[i].z = 0.;
         particles[i].vx = -mfac*sin(n*t);
         particles[i].vy = mfac*cos(n*t);
-        particles[i].vz = 0.;*/
-        particles[i].x = 0.;
+        particles[i].vz = 0.;
+        /*particles[i].x = 0.;
         particles[i].y = 0.;
         particles[i].vx = 0.;
-        particles[i].vy = 0.;
+        particles[i].vy = 0.;*/
     }
 }
 /////////////////////////
@@ -251,7 +251,14 @@ static int reb_integrator_ias15_step(struct reb_simulation* r) {
         kstart = N_active;
     }
     const int kstart3 =3*kstart;
-    // reb_update_acceleration(); // Not needed. Forces are already calculated in main routine.
+
+    // Need to make sure active particle pos/vel are consistent with what comes later
+    if (r->fix_active_trajectories){ // Updates both pos and vel since roughly equal cost
+        for (int i=0; i<N_active;i++){
+            r->fix_active_trajectories(i, r->t, particles); // UPDATE SUBTIMES
+        }
+    }
+    reb_update_acceleration(r); // Not needed. Forces are already calculated in main routine.
     
     double s[9];                // Summation coefficients 
     double* restrict const csx = r->ri_ias15.csx; 
@@ -383,7 +390,6 @@ static int reb_integrator_ias15_step(struct reb_simulation* r) {
                 particles[mi].y = xk1 + x0[k1];
                 double xk2  = -csx[k2] + (s[8]*b.p6[k2] + s[7]*b.p5[k2] + s[6]*b.p4[k2] + s[5]*b.p3[k2] + s[4]*b.p2[k2] + s[3]*b.p1[k2] + s[2]*b.p0[k2] + s[1]*a0[k2] + s[0]*v0[k2] );
                 particles[mi].z = xk2 + x0[k2];
-                //fprintf(stderr, "%e\t%e\t%e\n", xk0, xk1, xk2);
             }
             if (r->calculate_megno || (r->additional_forces && r->force_is_velocity_dependent)){
                 s[0] = r->dt * h[n];
@@ -410,15 +416,7 @@ static int reb_integrator_ias15_step(struct reb_simulation* r) {
                 }
             }
 
-            if (n==1){
-                fprintf(stderr, "n=%d, t=%.16e, yp=%.16e, ap=%.16e\n", n, r->t, particles[1].y, particles[2].y, particles[2].ay);
-            }
             reb_update_acceleration(r);             // Calculate forces at interval n
-            if (n==1){
-                fprintf(stderr, "n=%d, t=%.16e, yp=%.16e, ap=%.16e\n", n, r->t, particles[1].y, particles[2].y, particles[2].ay);
-            }
-            //fprintf(stderr, "acc = %f\t%f\t%f\n", particles[2].ax, particles[2].ay, particles[2].az);
-            //fprintf(stderr, "jup pos = %e\t%e\t%e\n", particles[1].x, particles[1].y, particles[1].z);
             if (r->calculate_megno){
                 integrator_megno_thisdt += w[n] * r->t * reb_tools_megno_deltad_delta(r);
             }
@@ -438,7 +436,6 @@ static int reb_integrator_ias15_step(struct reb_simulation* r) {
                         add_cs(&gk, &gk_cs, -a0[k]);
                         add_cs(&gk, &gk_cs, csa0[k]);
                         g.p0[k]  = gk/rr[0];
-                        fprintf(stderr, "k=%d, gk=%e, gk_cs=%e, csa0=%e, rr[0]=%e, g0 = %e\n", k, gk, gk_cs, csa0[k], rr[0], g.p0[k]);
                         add_cs(&(b.p0[k]), &(csb.p0[k]), g.p0[k]-tmp);
                     } break;
                 case 2: 
@@ -599,7 +596,8 @@ static int reb_integrator_ias15_step(struct reb_simulation* r) {
         }else{
             for(int k=kstart3;k<N3;k++) {
                 const double ak  = at[k];
-                const double b6k = b.p6[k]; 
+                const double b6k = b.p6[k];
+                fprintf(stderr, "k=%d, b6=%e\n", k, b.p6[k]);
                 const double errork = fabs(b6k/ak);
                 if (isnormal(errork) && errork>integrator_error){
                     integrator_error = errork;
@@ -614,10 +612,9 @@ static int reb_integrator_ias15_step(struct reb_simulation* r) {
         }else{                  // In the rare case that the error estimate doesn't give a finite number (e.g. when all forces accidentally cancel up to machine precission).
             dt_new = dt_done/safety_factor; // by default, increase timestep a little
         }
-        //fprintf(stderr, "predcorrerr=%e, inteeger=%e, dtnew=%e\n", predictor_corrector_error, integrator_error, dt_new);
-        if (dt_new < 1.e-10){
-            exit(1);
-        }
+        double dist = sqrt((particles[2].x-particles[1].x)*(particles[2].x-particles[1].x) + (particles[2].y-particles[1].y)*(particles[2].y-particles[1].y) );
+        fprintf(stderr, "predcorrerr=%e, integerr=%e, dist=%e\n, dtnew=%e\n", predictor_corrector_error, integrator_error, dist, dt_new);
+        
         if (fabs(dt_new)<r->ri_ias15.min_dt) dt_new = copysign(r->ri_ias15.min_dt,dt_new);
         
         if (fabs(dt_new/dt_done) < safety_factor) { // New timestep is significantly smaller.
