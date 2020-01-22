@@ -1051,6 +1051,7 @@ struct reb_simulation {
      */
     int (*collision_resolve) (struct reb_simulation* const r, struct reb_collision);
 
+    void (*fix_active_trajectories) (const int i, const double t, struct reb_particle* particles);
     /**
      * @brief Free particle's ap pointer.  Called in reb_remove function.
      */

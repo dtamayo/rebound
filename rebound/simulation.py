@@ -2098,6 +2098,7 @@ Simulation._fields_ = [
                 ("_display_heartbeat", CFUNCTYPE(None,POINTER(Simulation))),
                 ("_coefficient_of_restitution", CFUNCTYPE(c_double,POINTER(Simulation), c_double)),
                 ("_collision_resolve", CFUNCTYPE(c_int,POINTER(Simulation), reb_collision)),
+                ("_fix_active_trajectories", CFUNCTYPE(c_int, c_double, POINTER(Particle))),
                 ("_free_particle_ap", CFUNCTYPE(None, POINTER(Particle))),
                 ("_extras_cleanup", CFUNCTYPE(None, POINTER(Simulation))),
                 ("extras", c_void_p),
