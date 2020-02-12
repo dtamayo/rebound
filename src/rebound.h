@@ -444,6 +444,34 @@ struct reb_simulation_integrator_whfast {
      */
 };
 
+/**
+ * @brief Available opperator splitting methods for phi0 and phi1 in EOS integrators.
+ */
+enum REB_EOS_TYPE {
+    REB_EOS_LF = 0x00,      // 2nd order, standard leap-frog
+    REB_EOS_LF4 = 0x01,     // 4th order, three function evaluations
+    REB_EOS_LF6 = 0x02,     // 6th order, nine function evaluations
+    REB_EOS_LF8 = 0x03,     // 8th order, seventeen funtion evaluations, see Blanes & Casa (2016), p91
+    REB_EOS_LF4_2 = 0x04,   // generalized order (4,2), two force evaluations, McLachlan 1995
+    REB_EOS_LF8_6_4= 0x05,  // generalized order (8,6,4), seven force evaluations
+    REB_EOS_PLF7_6_4= 0x06, // generalized order (7,6,4), three force evaluations, pre- and post-processors
+    REB_EOS_PMLF4 = 0x07,   // 4th order, one modified force evaluation, pre- and post-processors, Blanes et al. (1999)
+    REB_EOS_PMLF6 = 0x08,   // 6th order, three modified force evaluations, pre- and post-processors, Blanes et al. (1999)
+};
+
+/**
+ * @brief This structure contains variables used by the EOS integrator family.
+ */
+struct reb_simulation_integrator_eos {
+    enum REB_EOS_TYPE phi0;         ///< Outer opperator splitting scheme
+    enum REB_EOS_TYPE phi1;         ///< Inner opperator splitting scheme
+    unsigned int n;                 ///
+
+    unsigned int safe_mode;         ///< If set to 0, always combine drift steps at the beginning and end of phi0. If set to 1, n needs to be bigger than 1.
+    unsigned int is_synchronized;   ///< Flag to indicate if the drift step at the end of the last timestep has been taken.
+};
+
+
 
 /**
  * @cond PRIVATE
@@ -679,6 +707,12 @@ enum REB_BINARY_FIELD_TYPE {
     REB_BINARY_FIELD_TYPE_DTLASTDONE = 145,
     REB_BINARY_FIELD_TYPE_SABA_TYPE = 146,
     REB_BINARY_FIELD_TYPE_SABA_KEEPUNSYNC = 147,
+    REB_BINARY_FIELD_TYPE_EOS_PHI0 = 148,
+    REB_BINARY_FIELD_TYPE_EOS_PHI1 = 149,
+    REB_BINARY_FIELD_TYPE_EOS_N = 150,
+    REB_BINARY_FIELD_TYPE_EOS_SAFEMODE = 151,
+    REB_BINARY_FIELD_TYPE_EOS_ISSYNCHRON = 152,
+
     REB_BINARY_FIELD_TYPE_HEADER = 1329743186,  // Corresponds to REBO (first characters of header text)
     REB_BINARY_FIELD_TYPE_SABLOB = 9998,        // SA Blob
     REB_BINARY_FIELD_TYPE_END = 9999,
@@ -908,7 +942,7 @@ struct reb_simulation {
      * @{
      */
     /**
-     * @brief Available collision routines
+     * @brief Available visualization options
      */
     enum {
         REB_VISUALIZATION_NONE = 0,     ///< No visualization (default if OPENGL compiler flag is turned off)
@@ -924,6 +958,7 @@ struct reb_simulation {
         REB_COLLISION_TREE = 2,     ///< Tree based collision search O(N log(N))
         REB_COLLISION_MERCURIUS = 3,///< Direct collision search optimized for MERCURIUS
         REB_COLLISION_LINE = 4,     ///< Direct collision search O(N^2), looks for collisions by assuming a linear path over the last timestep
+        REB_COLLISION_LINETREE = 5, ///< Tree-based collision search O(N log(N)), looks for collisions by assuming a linear path over the last timestep
         } collision;
     /**
      * @brief Available integrators
@@ -938,6 +973,7 @@ struct reb_simulation {
         REB_INTEGRATOR_JANUS = 8,    ///< Bit-wise reversible JANUS integrator.
         REB_INTEGRATOR_MERCURIUS = 9,///< MERCURIUS integrator 
         REB_INTEGRATOR_SABA = 10,    ///< SABA integrator family (Laskar and Robutel 2001)
+        REB_INTEGRATOR_EOS = 11,     ///< Embedded Operator Splitting (EOS) integrator family (Rein 2019)
         } integrator;
 
     /**
@@ -974,6 +1010,7 @@ struct reb_simulation {
     struct reb_simulation_integrator_ias15 ri_ias15;    ///< The IAS15 struct
     struct reb_simulation_integrator_mercurius ri_mercurius;      ///< The MERCURIUS struct
     struct reb_simulation_integrator_janus ri_janus;    ///< The JANUS struct 
+    struct reb_simulation_integrator_eos ri_eos;        ///< The EOS struct 
     /** @} */
 
     /**
