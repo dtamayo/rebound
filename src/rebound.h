@@ -407,6 +407,8 @@ enum REB_STATUS {
     REB_EXIT_ENCOUNTER = 3,     ///< The integration ends early because two particles had a close encounter (see exit_min_distance)
     REB_EXIT_ESCAPE = 4,        ///< The integration ends early because a particle escaped (see exit_max_distance)  
     REB_EXIT_USER = 5,          ///< User caused exit, simulation did not finish successfully.
+    REB_EXIT_SIGINT = 6,        ///< SIGINT received. Simulation stopped.
+    REB_EXIT_COLLISION = 7,     ///< The integration ends early because two particles collided. 
 };
 
 
@@ -1062,6 +1064,7 @@ int reb_collision_resolve_hardsphere(struct reb_simulation* const r, struct reb_
  *          Conserves mass, momentum and volume. Compatible with HERMES. 
  */
 int reb_collision_resolve_merge(struct reb_simulation* const r, struct reb_collision c);
+int reb_collision_resolve_halt(struct reb_simulation* const r, struct reb_collision c);
 
 /** @} */
 

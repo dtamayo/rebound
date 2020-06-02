@@ -64,6 +64,11 @@ class ParticleNotFound(Exception):
     """Particle was not found in the simulation."""
     pass
 
+class Collision(Exception):
+    """The simulation exited because a collision has been detected.
+    You may want to search for which particles have a lastcollision time equal to the simulation time."""
+    pass
+
 from .simulation import Simulation, Orbit, Variation, reb_simulation_integrator_whfast, reb_simulation_integrator_sei
 from .particle import Particle
 from .plotting import OrbitPlot
