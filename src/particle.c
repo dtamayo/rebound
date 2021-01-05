@@ -215,24 +215,28 @@ int reb_remove(struct reb_simulation* const r, int index, int keepSorted){
     if (r->integrator == REB_INTEGRATOR_MERCURIUS){
         keepSorted = 1; // Force keepSorted for hybrid integrator
         struct reb_simulation_integrator_mercurius* rim = &(r->ri_mercurius);
-        for (int i=0;i<r->N-1;i++){
-            if (i>=index){
-                rim->dcrit[i] = rim->dcrit[i+1];
+        if (rim->dcrit_allocatedN>0 && index<rim->dcrit_allocatedN){
+            for (int i=0;i<r->N-1;i++){
+                if (i>=index){
+                    rim->dcrit[i] = rim->dcrit[i+1];
+                }
             }
         }
         reb_integrator_ias15_reset(r);
         if (r->ri_mercurius.mode==1){
             struct reb_simulation_integrator_mercurius* rim = &(r->ri_mercurius);
             int after_to_be_removed_particle = 0;
+            int encounter_index = -1;
             for (int i=0;i<rim->encounterN;i++){
                 if (after_to_be_removed_particle == 1){
                     rim->encounter_map[i-1] = rim->encounter_map[i] - 1; 
                 }
                 if (rim->encounter_map[i]==index){
+                    encounter_index = i;
                     after_to_be_removed_particle = 1;
                 }
             }
-            if (index<rim->encounterNactive){
+            if (encounter_index<rim->encounterNactive){
                 rim->encounterNactive--;
             }
             rim->encounterN--;
@@ -330,6 +334,13 @@ void reb_particle_imul(struct reb_particle* p1, double value){
     p1->vy *= value;
     p1->vz *= value;
     p1->m *= value;
+}
+
+double reb_particle_distance(struct reb_particle* p1, struct reb_particle* p2){
+    double dx = p1->x - p2->x;
+    double dy = p1->y - p2->y;
+    double dz = p1->z - p2->z;
+    return sqrt(dx*dx + dy*dy + dz*dz);
 }
 
 struct reb_particle reb_particle_nan(void){
