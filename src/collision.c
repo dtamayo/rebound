@@ -334,7 +334,7 @@ void reb_collision_search(struct reb_simulation* const r){
 
     // randomize
     for (int i=0;i<collisions_N;i++){
-        int new = rand()%collisions_N;
+        int new = rand_r(&(r->rand_seed))%collisions_N;
         struct reb_collision c1 = r->collisions[i];
         r->collisions[i] = r->collisions[new];
         r->collisions[new] = c1;
@@ -343,7 +343,7 @@ void reb_collision_search(struct reb_simulation* const r){
     
     int (*resolve) (struct reb_simulation* const r, struct reb_collision c) = r->collision_resolve;
     if (resolve==NULL){
-        // Default is hard sphere
+        // Default is to throw an exception
         resolve = reb_collision_resolve_halt;
     }
     unsigned int collision_resolve_keep_sorted = r->collision_resolve_keep_sorted;

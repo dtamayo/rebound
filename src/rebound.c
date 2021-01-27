@@ -64,11 +64,16 @@
 const int reb_max_messages_length = 1024;   // needs to be constant expression for array size
 const int reb_max_messages_N = 10;
 const char* reb_build_str = __DATE__ " " __TIME__;  // Date and time build string. 
-const char* reb_version_str = "3.13.2";         // **VERSIONLINE** This line gets updated automatically. Do not edit manually.
+const char* reb_version_str = "3.14.0";         // **VERSIONLINE** This line gets updated automatically. Do not edit manually.
 const char* reb_githash_str = STRINGIFY(GITHASH);             // This line gets updated automatically. Do not edit manually.
 
 static int reb_error_message_waiting(struct reb_simulation* const r);
 
+void reb_steps(struct reb_simulation* const r, unsigned int N_steps){
+    for (unsigned int i=0;i<N_steps;i++){
+        reb_step(r);
+    }
+}
 void reb_step(struct reb_simulation* const r){
     // Update walltime
     struct timeval time_beginning;
@@ -325,6 +330,7 @@ void reb_free_pointers(struct reb_simulation* const r){
     if (r->extras_cleanup){
         r->extras_cleanup(r);
     }
+    free(r->var_config);
 }
 
 void reb_reset_temporary_pointers(struct reb_simulation* const r){
@@ -463,7 +469,7 @@ void reb_clear_pre_post_pointers(struct reb_simulation* const r){
 }
 
 void reb_init_simulation(struct reb_simulation* r){
-    reb_tools_init_srand();
+    reb_tools_init_srand(r);
     reb_reset_temporary_pointers(r);
     reb_reset_function_pointers(r);
     r->t        = 0; 
