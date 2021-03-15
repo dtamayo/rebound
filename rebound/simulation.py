@@ -16,11 +16,6 @@ except:
     from collections import MutableMapping
 
 
-try:
-    import pkg_resources
-except: 
-    # Fails on python3, but not important
-    pass
 import types
       
 ### The following enum and class definitions need to
@@ -62,7 +57,8 @@ BINARY_WARNINGS = [
     (True,  32, "Index out of range.",),
     (True,  64, "Error while trying to seek file.",),
     (False, 128, "Encountered unkown field in file. File might have been saved with a different version of REBOUND."),
-    (True,  256, "Integrator type is not supported by this simulation archive version.")
+    (True,  256, "Integrator type is not supported by this simulation archive version."),
+    (False,  512, "The binary file seems to be corrupted. An attempt has been made to recover parts of it. However, it might not be possible to append snapshots to the current file."),
 ]
 
 class reb_hash_pointer_pair(Structure):
@@ -400,6 +396,8 @@ class Orbit(Structure):
         true anomaly
     M       : float           
         mean anomaly
+    E       : float           
+        eccentric anomaly (requires solving Kepler's equation - only calculated when needed)
     l       : float           
         mean longitude = Omega + omega + M
     theta   : float           
@@ -432,6 +430,11 @@ class Orbit(Structure):
         Returns a string with the semi-major axis and eccentricity of the orbit.
         """
         return "<rebound.Orbit instance, a={0} e={1} inc={2} Omega={3} omega={4} f={5}>".format(str(self.a),str(self.e), str(self.inc), str(self.Omega), str(self.omega), str(self.f))
+    
+    @property 
+    def E(self):
+        clibrebound.reb_tools_M_to_E.restype = c_double
+        return clibrebound.reb_tools_M_to_E(c_double(self.e), c_double(self.M))
 
 class Simulation(Structure):
     """
@@ -488,7 +491,7 @@ class Simulation(Structure):
             snapshot = kw["snapshot"]
        
         # Create simulation
-        if filename==None:
+        if filename is None:
             # Create a new simulation
             sim = super(Simulation,cls).__new__(cls)
             clibrebound.reb_init_simulation(byref(sim))
@@ -595,7 +598,7 @@ class Simulation(Structure):
                 for w in self._widgets:
                     w.refresh(simp,isauto=1)
             self.visualization = VISUALIZATIONS["webgl"] 
-            clibrebound.reb_display_init_data(byref(self));
+            clibrebound.reb_display_init_data(byref(self))
             self._dhbf = AFF(display_heartbeat)
             self._display_heartbeat = self._dhbf
             display(HTML(Widget.getClientCode())) # HACK! Javascript should go into custom.js
@@ -660,7 +663,7 @@ class Simulation(Structure):
         >>> sim = sa[-1]  # get the last snapshot in the SA file
 
         """
-        modes = sum(1 for i in [interval, walltime,step] if i != None)
+        modes = sum(1 for i in [interval, walltime,step] if i is not None)
         if modes != 1:
             raise AttributeError("Need to specify either interval, walltime, or step")
         if deletefile and os.path.isfile(filename):
@@ -1273,7 +1276,7 @@ class Simulation(Structure):
         This function also needs to be called if you are interested in the Lyapunov exponent as it is
         calculate with the help of MEGNO. See Rein and Tamayo 2015 for details on the implementation.
 
-        For more information on MEGNO see e.g. http://dx.doi.org/10.1051/0004-6361:20011189
+        For more information on MEGNO see e.g. https://dx.doi.org/10.1051/0004-6361:20011189
         """
         if seed is None:
             clibrebound.reb_tools_megno_init(byref(self))
@@ -2031,6 +2034,7 @@ class reb_simulation_integrator_mercurius(Structure):
                 ("mode", c_uint),
                 ("_encounterN", c_uint),
                 ("_encounterNactive", c_uint),
+                ("_tponly_encounter", c_uint),
                 ("_allocatedN", c_uint),
                 ("_allocatedN_additionalforces", c_uint),
                 ("_dcrit_allocatedN", c_uint),

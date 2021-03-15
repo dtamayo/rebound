@@ -3,6 +3,20 @@ Changelog
 
 This changelog only includes the most important changes in recent updates. For a full log of all changes, please refer to git.
 
+Version 3.16.0
+--------------
+* MERCURIUS: If encounters only involve test-particles (type 0), then the algorithm is now resetting the coordinates of all massive particles after the encounter step. This only changes the outcome at the machine precision, but it makes the trajectories of massive particles independent of the close encounter history. Thanks to Kat Deck for this feature!
+* MERCURIUS: The gravity routine is now O(0.5*N^2) instead of O(N^2) for non-OPENMP runs. This should lead to a noticable improvement in runtime.
+
+Version 3.15.0
+--------------
+* Orbital parameters of particles can now be changed in-place. For example: 'sim.particles[1].e += 0.1'.
+* Implemented more chatty repr functions for most object. Printing REBOUND objects should now give some useful information. 
+* Improved support for adding/removing particle in MERCURIUS during collisions.
+* REBOUND now outputs an error message when one is trying to remove a particle with a negative index.
+* Small updates to the documentation.
+* New ipython example added, showing how to use a python collision resolve function.
+
 Version 3.14.0
 --------------
 * Due to a bug, WHFast was not thread-safe. It is now.

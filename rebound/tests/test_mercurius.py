@@ -6,6 +6,28 @@ from datetime import datetime
 
 class TestMercurius(unittest.TestCase):
     
+    def test_no_effect_tp(self):
+        # tests if test particle encounters have an effect
+        sim = rebound.Simulation()
+        sim.add(m=1)
+        sim.add(m=1e-3,a=1)
+        sim.move_to_com()
+        sim.N_active=2
+        sim.integrator = "mercurius"
+        sim.dt = 0.1
+        sim2 = sim.copy()
+        p = sim.particles[1].copy()
+        p.x += 0.01
+        p.m = 0
+        sim.add(p)
+        sim.step()
+        sim2.step()
+
+        self.assertEqual(sim.particles[1].x,sim2.particles[1].x)
+        self.assertEqual(sim.particles[1].vx,sim2.particles[1].vx)
+        self.assertEqual(sim.particles[0].x,sim2.particles[0].x)
+        self.assertEqual(sim.particles[0].vx,sim2.particles[0].vx)
+
     def test_outer_solar(self):
         sim = rebound.Simulation()
         rebound.data.add_outer_solar_system(sim)
@@ -121,7 +143,7 @@ class TestMercurius(unittest.TestCase):
 
         sim.integrator = "mercurius"
         sim.dt = 0.01
-        sim.track_energy_offset = 1;
+        sim.track_energy_offset = 1
         sim.collision = "direct"
         sim.collision_resolve = "merge"
         
@@ -150,7 +172,7 @@ class TestMercurius(unittest.TestCase):
         sim.integrator = "mercurius"
         sim.dt = 0.01
         sim.testparticle_type = 1
-        sim.track_energy_offset = 1;
+        sim.track_energy_offset = 1
         sim.collision = "direct"
         sim.collision_resolve = "merge"
         
@@ -176,7 +198,7 @@ class TestMercurius(unittest.TestCase):
         sim.testparticle_type = 1
         sim.collision = "direct"
         sim.collision_resolve = "merge"
-        sim.track_energy_offset = 1;
+        sim.track_energy_offset = 1
         
         sim.boundary = "open"
         boxsize = 3.
@@ -197,7 +219,7 @@ class TestMercurius(unittest.TestCase):
 
         sim.integrator = "mercurius"
         sim.dt = 0.01
-        sim.track_energy_offset = 1;
+        sim.track_energy_offset = 1
         sim.collision = "direct"
         sim.collision_resolve = "merge"
         
@@ -225,7 +247,7 @@ class TestMercurius(unittest.TestCase):
 
         sim.integrator = "mercurius"
         sim.dt = 0.01
-        sim.track_energy_offset = 1;
+        sim.track_energy_offset = 1
         sim.collision = "direct"
         sim.collision_resolve = "merge"
         
@@ -246,8 +268,14 @@ class TestMercurius(unittest.TestCase):
         def get_sim():
             sim = rebound.Simulation()
             sim.add(m=1)
-            for i in range(6):
-                sim.add(a=1+0.2*i,e=0.1+0.1*i,f=80.*i,omega=30.*i*i,m=0.0001)
+            # Setup using xyz instead of orbital elements for
+            # machine independent test
+            sim.add(m=0.0001,x=0.90000, y=0.00000, vx=0.00000, vy=1.10360)
+            sim.add(m=0.0001, x=-1.17676, y=-0.05212, vx=0.22535, vy=-0.90102)
+            sim.add(m=0.0001, x=-1.66025, y=-0.69852, vx=0.18932, vy=-0.60030)
+            sim.add(m=0.0001, x=0.57904, y=1.03836, vx=-0.69267, vy=0.75995)
+            sim.add(m=0.0001, x=-0.41683, y=0.83128, vx=-1.03478, vy=-0.72482)
+            sim.add(m=0.0001, x=1.83969, y=0.32938, vx=-0.55114, vy=0.51646)
             sim.move_to_com()
             sim.dt = 0.034
             return sim
@@ -281,6 +309,7 @@ class TestMercurius(unittest.TestCase):
         is_travis = 'TRAVIS' in os.environ
         if not is_travis: # timing not reliable on TRAVIS
             self.assertLess(2.*time_mercurius,time_ias15) # at least 2 times faster than ias15
+        self.assertEqual(7060.644251181158, sim.particles[5].x) # Check if bitwise unchanged
         
 
 

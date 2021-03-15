@@ -64,7 +64,7 @@
 const int reb_max_messages_length = 1024;   // needs to be constant expression for array size
 const int reb_max_messages_N = 10;
 const char* reb_build_str = __DATE__ " " __TIME__;  // Date and time build string. 
-const char* reb_version_str = "3.14.0";         // **VERSIONLINE** This line gets updated automatically. Do not edit manually.
+const char* reb_version_str = "3.16.0";         // **VERSIONLINE** This line gets updated automatically. Do not edit manually.
 const char* reb_githash_str = STRINGIFY(GITHASH);             // This line gets updated automatically. Do not edit manually.
 
 static int reb_error_message_waiting(struct reb_simulation* const r);
@@ -632,13 +632,13 @@ int reb_check_exit(struct reb_simulation* const r, const double tmax, double* la
     }else if(tmax!=INFINITY){
         if(r->exact_finish_time==1){
             if ((r->t+r->dt)*dtsign>=tmax*dtsign){  // Next step would overshoot
-                double tscale = 1e-12*fabs(tmax);   // Find order of magnitude for time
-                if (tscale<1e-200){     // Failsafe if tmax==0.
-                    tscale = 1e-12;
-                }
                 if (r->t==tmax){
                     r->status = REB_EXIT_SUCCESS;
                 }else if(r->status == REB_RUNNING_LAST_STEP){
+                    double tscale = 1e-12*fabs(tmax);   // Find order of magnitude for time
+                    if (tscale<1e-200){     // Failsafe if tmax==0.
+                        tscale = 1e-12;
+                    }
                     if (fabs(r->t-tmax)<tscale){
                         r->status = REB_EXIT_SUCCESS;
                     }else{

@@ -316,50 +316,75 @@ void reb_read_simulationarchive_with_messages(struct reb_simulationarchive* sa, 
         }
     }else{
         // New version
-        struct reb_simulationarchive_blob blob = {0};
-        fseek(sa->inf, -sizeof(struct reb_simulationarchive_blob), SEEK_END);  
-        fread(&blob, sizeof(struct reb_simulationarchive_blob), 1, sa->inf);
-        sa->nblobs = blob.index+1;
-        sa->t = malloc(sizeof(double)*sa->nblobs);
-        sa->offset = malloc(sizeof(uint32_t)*sa->nblobs);
-        fseek(sa->inf, 0, SEEK_SET);  
-        if (sa_index){
-            // This is an optimzation for loading many large SAs.
-            // It assumes the structure of this SA is *exactly* the same as in sa_index.
-            // Unexpected behaviour if the shape is not the same.
-            if (sa->nblobs!=sa_index->nblobs) {
-                fclose(sa->inf);
-                free(sa->filename);
-                free(sa->t);
-                free(sa->offset);
-                free(sa);
-                *warnings |= REB_INPUT_BINARY_ERROR_SEEK;
-                return;
-            }
-            // No need to read the large file, just copying the index.
-            memcpy(sa->offset, sa_index->offset, sizeof(uint32_t)*sa->nblobs);
-            memcpy(sa->t, sa_index->t, sizeof(double)*sa->nblobs);
-        }else{
-            for(long i=0;i<sa->nblobs;i++){
+        if (sa_index == NULL){ // Need to construct offset index from file.
+            long nblobsmax = 1024;
+            sa->t = malloc(sizeof(double)*nblobsmax);
+            sa->offset = malloc(sizeof(uint32_t)*nblobsmax);
+            fseek(sa->inf, 0, SEEK_SET);  
+            int failed = 0;
+            int endoffile = 0;
+            sa->nblobs = 0;
+            for(long i=0;i<nblobsmax;i++){
                 struct reb_binary_field field = {0};
                 sa->offset[i] = ftell(sa->inf);
                 do{
-                    fread(&field,sizeof(struct reb_binary_field),1,sa->inf);
-                    switch (field.type){
-                        case REB_BINARY_FIELD_TYPE_HEADER:
-                            fseek(sa->inf,64 - sizeof(struct reb_binary_field),SEEK_CUR);
-                            break;
-                        case REB_BINARY_FIELD_TYPE_T:
-                            fread(&(sa->t[i]), sizeof(double),1,sa->inf);
-                            break;
-                        default:
-                            fseek(sa->inf,field.size,SEEK_CUR);
-                            break;
-                            
+                    size_t r1 = fread(&field,sizeof(struct reb_binary_field),1,sa->inf);
+                    if (r1==1){
+                        switch (field.type){
+                            case REB_BINARY_FIELD_TYPE_HEADER:
+                                {
+                                    int s1 = fseek(sa->inf,64 - sizeof(struct reb_binary_field),SEEK_CUR);
+                                    if (s1){
+                                        failed = 1;
+                                    }
+                                }
+                                break;
+                            case REB_BINARY_FIELD_TYPE_T:
+                                {
+                                    size_t r2 = fread(&(sa->t[i]), sizeof(double),1,sa->inf);
+                                    if (r2!=1){
+                                        failed = 1;
+                                    }
+                                }
+                                break;
+                            default:
+                                {
+                                    int s2 = fseek(sa->inf,field.size,SEEK_CUR);
+                                    if (s2){
+                                        failed = 1;
+                                    }
+                                }
+                                break;
+                        }
+                    }else{
+                        endoffile = 1;
                     }
-                }while(field.type!=REB_BINARY_FIELD_TYPE_END);
-                fread(&blob, sizeof(struct reb_simulationarchive_blob), 1, sa->inf);
-                if (i!=blob.index) {
+                }while(endoffile==0 && failed==0 && field.type!=REB_BINARY_FIELD_TYPE_END);
+                if (endoffile==0 && failed==0){
+                    struct reb_simulationarchive_blob blob = {0};
+                    size_t r3 = fread(&blob, sizeof(struct reb_simulationarchive_blob), 1, sa->inf);
+                    if (r3!=1){
+                        failed = 1;
+                    }
+                }
+                if (failed){
+                    break;
+                }
+                sa->nblobs = i;
+                if (endoffile==1){
+                    break;  // Normal exit
+                }
+                if (i==nblobsmax-1){
+                    nblobsmax += 1024;
+                    sa->t = realloc(sa->t,sizeof(double)*nblobsmax);
+                    sa->offset = realloc(sa->offset,sizeof(uint32_t)*nblobsmax);
+                }
+
+            }
+            if (failed){
+                if (sa->nblobs>0){
+                    *warnings |= REB_INPUT_BINARY_WARNING_CORRUPTFILE;
+                }else{
                     fclose(sa->inf);
                     free(sa->filename);
                     free(sa->t);
@@ -369,12 +394,24 @@ void reb_read_simulationarchive_with_messages(struct reb_simulationarchive* sa, 
                     return;
                 }
             }
+
+        }else{ // reuse index from other SA
+            // This is an optimzation for loading many large SAs.
+            // It assumes the structure of this SA is *exactly* the same as in sa_index.
+            // Unexpected behaviour if the shape is not the same.
+            sa->nblobs = sa_index->nblobs;
+            sa->t = malloc(sizeof(double)*sa->nblobs);
+            sa->offset = malloc(sizeof(uint32_t)*sa->nblobs);
+            fseek(sa->inf, 0, SEEK_SET);
+            // No need to read the large file, just copying the index.
+            memcpy(sa->offset, sa_index->offset, sizeof(uint32_t)*sa->nblobs);
+            memcpy(sa->t, sa_index->t, sizeof(double)*sa->nblobs);
         }
     }
 }
 
 struct reb_simulationarchive* reb_open_simulationarchive(const char* filename){
-    struct reb_simulationarchive* sa = malloc(sizeof(struct reb_simulationarchive)); 
+    struct reb_simulationarchive* sa = malloc(sizeof(struct reb_simulationarchive));
     enum reb_input_binary_messages warnings = REB_INPUT_BINARY_WARNING_NONE;
     reb_read_simulationarchive_with_messages(sa, filename, NULL, &warnings);
     if (warnings & REB_INPUT_BINARY_ERROR_NOFILE){

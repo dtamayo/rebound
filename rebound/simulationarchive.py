@@ -238,7 +238,7 @@ class SimulationArchive(Structure):
             return sim
         else:
             if mode=='exact':
-                keep_unsynchronized==0
+                keep_unsynchronized = 0
             if (sim.integrator=="whfast" and sim.ri_whfast.safe_mode == 1) or (sim.integrator=="saba" and sim.ri_saba.safe_mode == 1):
                 keep_unsynchronized = 0
             sim.ri_whfast.keep_unsynchronized = keep_unsynchronized
@@ -303,7 +303,7 @@ class SimulationArchive(Structure):
         import numpy as np
         Npoints = len(self)*3-2
         if len(self)<=1:
-            raise Runtim
+            raise RuntimeError()
         Nparticles = self[0].N
         verts = np.zeros((Npoints,Nparticles,2))
         xy = np.zeros((len(self),Nparticles,2))
