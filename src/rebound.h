@@ -724,6 +724,7 @@ enum REB_BINARY_FIELD_TYPE {
     REB_BINARY_FIELD_TYPE_EOS_ISSYNCHRON = 152,
     REB_BINARY_FIELD_TYPE_IAS15_NEWORDER = 153,
     REB_BINARY_FIELD_TYPE_RAND_SEED = 154,
+    REB_BINARY_FIELD_TYPE_TESTPARTICLEHIDEWARNINGS = 155,
 
     REB_BINARY_FIELD_TYPE_HEADER = 1329743186,  // Corresponds to REBO (first characters of header text)
     REB_BINARY_FIELD_TYPE_SABLOB = 9998,        // SA Blob
@@ -834,6 +835,7 @@ struct reb_simulation {
     struct reb_variational_configuration* var_config;   ///< These configuration structs contain details on variational particles. 
     int     N_active;               ///< Number of massive particles included in force calculation (default: N). Particles with index >= N_active are considered testparticles.
     int     testparticle_type;      ///< Type of the particles with an index>=N_active. 0 means particle does not influence any other particle (default), 1 means particles with index < N_active feel testparticles (similar to MERCURY's small particles). Testparticles never feel each other.
+    int     testparticle_hidewarnings;      ///< Hide testparticle warnings if 1. Default: 0.
     struct reb_hash_pointer_pair* particle_lookup_table; ///< Array of pairs that map particles' hashes to their index in the particles array.
     int     hash_ctr;               ///< Counter for number of assigned hashes to assign unique values.
     int     N_lookup;               ///< Number of entries in the particle lookup table.
@@ -1564,6 +1566,43 @@ double reb_tools_mod2pi(double f);
  * @return True anomaly
  */
 double reb_tools_M_to_f(double e, double M);
+
+/** 
+ * @brief Function to initialize particles.
+ * @details See the C-example in the folder reb_add_fmt for usage details. 
+ * If a non-physical combination of parameters is given, no particle will be added 
+ * and an error will be outputted.
+ * The format string can include the following parameters, separated by a white space:
+ *       m:          Mass  (Default: 0)
+ *       x, y, z:    Positions in Cartesian coordinates  (Default: 0)
+ *       vx, vy, vz: Velocities in Cartesian coordinates (Default: 0)
+ *       primary:    Primary body for converting orbital elements to cartesian (Default: center of mass of the particles in the passed simulation, i.e., this will yield Jacobi coordinates as one progressively adds particles) 
+ *       a:          Semimajor axis (a or P required if passing orbital elements)
+ *       P:          Orbital period (a or P required if passing orbital elements)
+ *       e:          Eccentricity                (Default: 0)
+ *       inc:        Inclination                 (Default: 0)
+ *       Omega:      Longitude of ascending node (Default: 0)
+ *       omega:      Argument of pericenter      (Default: 0)
+ *       pomega:     Longitude of pericenter     (Default: 0)
+ *       f:          True anomaly                (Default: 0)
+ *       M:          Mean anomaly                (Default: 0)
+ *       E:          Eccentric anomaly           (Default: 0)
+ *       l:          Mean longitude              (Default: 0)
+ *       theta:      True longitude              (Default: 0)
+ *       T:          Time of pericenter passage  
+ *       h:          h variable, see Pal (2009) for a definition  (Default: 0)
+ *       k:          k variable, see Pal (2009) for a definition  (Default: 0)
+ *       ix:         ix variable, see Pal (2009) for a definition  (Default: 0)
+ *       iy:         iy variable, see Pal (2009) for a definition  (Default: 0)
+ *       r:          Particle radius
+ */
+void reb_add_fmt(struct reb_simulation* r, const char* fmt, ...);
+
+/**
+ * @brief: Same as reb_add_fmt() but returns the particle instead of adding it to the simualtion.
+ * @details: A simulation object is required when initializing a particle with orbital elements.
+ */
+struct reb_particle reb_particle_new(struct reb_simulation* r, const char* fmt, ...);
 
 /**
  * @brief Initialize a particle on an orbit in the xy plane.

@@ -64,7 +64,7 @@
 const int reb_max_messages_length = 1024;   // needs to be constant expression for array size
 const int reb_max_messages_N = 10;
 const char* reb_build_str = __DATE__ " " __TIME__;  // Date and time build string. 
-const char* reb_version_str = "3.16.0";         // **VERSIONLINE** This line gets updated automatically. Do not edit manually.
+const char* reb_version_str = "3.17.0";         // **VERSIONLINE** This line gets updated automatically. Do not edit manually.
 const char* reb_githash_str = STRINGIFY(GITHASH);             // This line gets updated automatically. Do not edit manually.
 
 static int reb_error_message_waiting(struct reb_simulation* const r);
@@ -494,6 +494,7 @@ void reb_init_simulation(struct reb_simulation* r){
     r->N_lookup = 0;
     r->allocatedN_lookup = 0;
     r->testparticle_type = 0;   
+    r->testparticle_hidewarnings = 0;
     r->N_var    = 0;    
     r->var_config_N = 0;    
     r->var_config   = NULL;     
@@ -753,6 +754,10 @@ static void* reb_integrate_raw(void* args){
 
     double last_full_dt = r->dt; // need to store r->dt in case timestep gets artificially shrunk to meet exact_finish_time=1
     r->dt_last_done = 0.; // Reset in case first timestep attempt will fail
+
+    if (r->testparticle_hidewarnings==0 && reb_particle_check_testparticles(r)){
+        reb_warning(r,"At least one test particle (type 0) has finite mass. This might lead to unexpected behaviour. Set testparticle_hidewarnings=1 to hide this warning.");
+    }
 
     r->status = REB_RUNNING;
     reb_run_heartbeat(r);

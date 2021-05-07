@@ -292,6 +292,7 @@ class reb_simulation_integrator_whfast(Structure):
                 ("keep_unsynchronized", c_uint),
                 ("is_synchronized", c_uint),
                 ("_allocatedN", c_uint),
+                ("_allocatedNtmp", c_uint),
                 ("_timestep_warning", c_uint),
                 ("_recalculate_coordinates_but_not_synchronized_warning", c_uint)]
 
@@ -2081,6 +2082,7 @@ Simulation._fields_ = [
                 ("var_config", POINTER(Variation)),
                 ("N_active", c_int),
                 ("testparticle_type", c_int),
+                ("testparticle_hidewarnings", c_int),
                 ("_particle_lookup_table", POINTER(reb_hash_pointer_pair)),
                 ("hash_ctr", c_int),
                 ("N_lookup", c_int),
