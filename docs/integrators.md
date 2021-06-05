@@ -51,7 +51,7 @@ The setting for IAS15 are stored in the `reb_simulation_integrator_ias15` struct
     === "Python"
         ```python
         sim = rebound.Simulation()
-        sim.ri_ias.min_dt = 1e-3
+        sim.ri_ias15.min_dt = 1e-3
         ```
 
 `epsilon_global` `(unsigned int`)
@@ -241,21 +241,38 @@ The `reb_simulation_integrator_mercurius` structure contains the configuration a
         ```c
         double reb_integrator_mercurius_L_mercury(const struct reb_simulation* const r, double d, double dcrit);           
         ```
+    - Smooth switching functions 
+
+        These two polynomials switching functions are 4 and 5 times differentiable. 
+        Using smooth switching functions can improve the accuracy. 
+        For a detailed discussion see [Hernandez 2019](https://ui.adsabs.harvard.edu/abs/2019MNRAS.490.4175H/abstract). 
+
+        ```c
+        double reb_integrator_mercurius_L_C4(const struct reb_simulation* const r, double d, double dcrit);
+        double reb_integrator_mercurius_L_C5(const struct reb_simulation* const r, double d, double dcrit); 
+        ```
 
     - Infinitely differentiable switching function
 
         This is an infinitely differentiable switching function. 
 
         ```c
-        double reb_integrator_mercurius_L_infinite(const struct reb_simulation* const r, double d, double dcrit);           
+        double reb_integrator_mercurius_L_infinity(const struct reb_simulation* const r, double d, double dcrit); 
         ```
    
     The switching function can be set using this syntax: 
 
-    ```c
-    struct reb_simulation* r = reb_create_simulation();
-    r->ri_mercurius.L = reb_integrator_mercurius_L_infinite; 
-    ```
+    === "C"
+        ```c
+        struct reb_simulation* r = reb_create_simulation();
+        r->ri_mercurius.L = reb_integrator_mercurius_L_infinity; 
+        ```
+
+    === "Python"
+        ```python
+        sim = rebound.Simulation()
+        sim.ri_mercurius.L = "infinity"
+        ```
 
 `double hillfac`
 :   The critical switchover radii of particles are calculated automatically based on multiple criteria. One criterion calculates the Hill radius of particles and then multiplies it with the `hillfac` parameter. The parameter is in units of the Hill radius. The default value is 3. 
